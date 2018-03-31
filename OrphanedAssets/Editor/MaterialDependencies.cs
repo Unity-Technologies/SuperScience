@@ -8,27 +8,20 @@ using Object = UnityEngine.Object;
 
 class MaterialDependencies : EditorWindow
 {
-	static readonly string[] k_SearchFolders = { "Assets/EditorVR/Workspaces" };
+	static readonly string[] k_SearchFolders = { "Assets" };
 	static readonly string[] k_ExcludePaths = { "libs" };
 
 	[MenuItem("Window/Material Dependencies")]
 	static void Init()
 	{
 		var window = GetWindow<MaterialDependencies>();
-		//var position = window.position;
-		//position.x = 0;
-		//position.y = 0;
-		//window.position = position;
 		window.Show();
 	}
 
-	[NonSerialized]
 	Dictionary<string, Dictionary<Object, string>> m_Shaders;
 
-	[NonSerialized]
 	Dictionary<string, Dictionary<Object, string>> m_Materials;
 
-	[NonSerialized]
 	Dictionary<string, Dictionary<Object, string>> m_Textures;
 
 	Vector2 m_Scroll;
@@ -37,6 +30,7 @@ class MaterialDependencies : EditorWindow
 	{
 		if (m_Shaders == null)
 			FindReferences();
+
 		EditorApplication.projectWindowChanged += FindReferences;
 	}
 
@@ -179,7 +173,7 @@ class MaterialDependencies : EditorWindow
 			if (!field.IsPublic)
 			{
 				var attr = field.GetCustomAttributes(typeof(SerializeField), true);
-				if (attr == null || attr.Length == 0)
+				if (attr.Length == 0)
 					continue;
 			}
 
@@ -206,6 +200,7 @@ class MaterialDependencies : EditorWindow
 	{
 		if (type == null || !(type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(ScriptableObject))))
 			return false;
+
 		return true;
 	}
 
@@ -241,6 +236,7 @@ class MaterialDependencies : EditorWindow
 			references = new Dictionary<Object, string>();
 			dict[key] = references;
 		}
+
 		references[obj] = propertyPath;
 	}
 

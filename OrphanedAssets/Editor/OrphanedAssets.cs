@@ -11,6 +11,16 @@ class OrphanedAssets : EditorWindow
     static readonly string[] k_SearchFolders = {"Assets"};
     static readonly string[] k_ExcludePaths = {"libs"};
 
+    List<string> m_OrphanedShaders;
+
+    List<string> m_OrphanedMaterials;
+
+    List<string> m_OrphanedTextures;
+
+    List<string> m_OrphanedScenes;
+
+    Vector2 m_Scroll;
+
     [MenuItem("Window/Orphaned Assets")]
     static void Init()
     {
@@ -18,20 +28,11 @@ class OrphanedAssets : EditorWindow
         window.Show();
     }
 
-    [NonSerialized] List<string> m_OrphanedShaders;
-
-    [NonSerialized] List<string> m_OrphanedMaterials;
-
-    [NonSerialized] List<string> m_OrphanedTextures;
-
-    [NonSerialized] List<string> m_OrphanedScenes;
-
-    Vector2 m_Scroll;
-
     void OnEnable()
     {
         if (m_OrphanedShaders == null)
             FindOrphans();
+
         EditorApplication.projectWindowChanged += FindOrphans;
     }
 
@@ -44,7 +45,7 @@ class OrphanedAssets : EditorWindow
     {
         m_OrphanedShaders = AssetDatabase.FindAssets("t:shader", k_SearchFolders).ToList();
         m_OrphanedShaders.RemoveAll(guid => !AssetDatabase.GUIDToAssetPath(guid).Contains(".shader")
-                                            || ExcludePath(AssetDatabase.GUIDToAssetPath(guid)));
+            || ExcludePath(AssetDatabase.GUIDToAssetPath(guid)));
 
         m_OrphanedTextures = AssetDatabase.FindAssets("t:texture", k_SearchFolders).ToList();
         m_OrphanedTextures.RemoveAll(guid =>
@@ -204,7 +205,7 @@ class OrphanedAssets : EditorWindow
             if (!field.IsPublic)
             {
                 var attr = field.GetCustomAttributes(typeof(SerializeField), true);
-                if (attr == null || attr.Length == 0)
+                if (attr.Length == 0)
                     continue;
             }
 
@@ -231,6 +232,7 @@ class OrphanedAssets : EditorWindow
     {
         if (type == null || !(type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(ScriptableObject))))
             return false;
+
         return true;
     }
 
