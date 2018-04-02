@@ -9,7 +9,13 @@ using Object = UnityEngine.Object;
 class MaterialDependencies : EditorWindow
 {
     static readonly string[] k_SearchFolders = { "Assets" };
-    static readonly string[] k_ExcludePaths = { "libs" };
+    static readonly string[] k_ExcludePaths = { "libs", "Resources" };
+
+    readonly Dictionary<string, Dictionary<Object, string>> m_Shaders = new Dictionary<string, Dictionary<Object, string>>();
+    readonly Dictionary<string, Dictionary<Object, string>> m_Materials = new Dictionary<string, Dictionary<Object, string>>();
+    readonly Dictionary<string, Dictionary<Object, string>> m_Textures = new Dictionary<string, Dictionary<Object, string>>();
+
+    Vector2 m_Scroll;
 
     [MenuItem("Window/Material Dependencies")]
     static void Init()
@@ -18,19 +24,9 @@ class MaterialDependencies : EditorWindow
         window.Show();
     }
 
-    Dictionary<string, Dictionary<Object, string>> m_Shaders;
-
-    Dictionary<string, Dictionary<Object, string>> m_Materials;
-
-    Dictionary<string, Dictionary<Object, string>> m_Textures;
-
-    Vector2 m_Scroll;
-
     void OnEnable()
     {
-        if (m_Shaders == null)
-            FindReferences();
-
+        FindReferences();
         EditorApplication.projectWindowChanged += FindReferences;
     }
 
@@ -41,9 +37,9 @@ class MaterialDependencies : EditorWindow
 
     void FindReferences()
     {
-        m_Shaders = new Dictionary<string, Dictionary<Object, string>>();
-        m_Materials = new Dictionary<string, Dictionary<Object, string>>();
-        m_Textures = new Dictionary<string, Dictionary<Object, string>>();
+        m_Shaders.Clear();
+        m_Materials.Clear();
+        m_Textures.Clear();
 
         var shaders = AssetDatabase.FindAssets("t:shader", k_SearchFolders);
         foreach (var guid in shaders)
@@ -228,6 +224,7 @@ class MaterialDependencies : EditorWindow
         {
             if (!dict.ContainsKey(key))
                 dict[key] = null;
+
             return;
         }
 
@@ -253,6 +250,15 @@ class MaterialDependencies : EditorWindow
 
     void OnGUI()
     {
+        //Ctrl + w to close
+        var current = Event.current;
+        if (current.Equals(Event.KeyboardEvent("^w")))
+        {
+            Close();
+            current.Use();
+            GUIUtility.ExitGUI();
+        }
+
         if (GUILayout.Button("Refresh"))
             FindReferences();
 
@@ -265,11 +271,11 @@ class MaterialDependencies : EditorWindow
         EditorGUILayout.EndScrollView();
     }
 
-    static void MaterialGUI(string header, Dictionary<string, Dictionary<Object, string>> dict, float width)
+    static void MaterialGUI(string header, Dictionary<string, Dictionary<Object, string>> dictionary, float width)
     {
-        EditorGUILayout.LabelField(header, dict.Count.ToString());
+        EditorGUILayout.LabelField(header, dictionary.Count.ToString());
 
-        foreach (var kvp in dict)
+        foreach (var kvp in dictionary)
         {
             var guid = kvp.Key;
             var assetPath = AssetDatabase.GUIDToAssetPath(guid);

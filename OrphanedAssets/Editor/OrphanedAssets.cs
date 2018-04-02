@@ -1,25 +1,44 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using UnityObject = UnityEngine.Object;
 
 class OrphanedAssets : EditorWindow
 {
-    static readonly string[] k_SearchFolders = {"Assets"};
-    static readonly string[] k_ExcludePaths = {"libs"};
+    class AssetGroup
+    {
+        readonly HashSet<string> m_Guids = new HashSet<string>();
 
-    List<string> m_OrphanedShaders;
+        public string header { get; set; }
+        public Type type { get; set; }
+        public bool foldout { get; set; }
+        public HashSet<string> guids
+        {
+            get { return m_Guids; }
+        }
+    }
 
-    List<string> m_OrphanedMaterials;
+    const int k_FrameTimeTicks = 50 * 10000; // 50ms in "ticks" which are 100ns
 
-    List<string> m_OrphanedTextures;
+    static readonly string[] k_SearchFolders = { "Assets" };
+    static readonly string[] k_ExcludePaths = { "libs", "Resources" };
 
-    List<string> m_OrphanedScenes;
+    readonly AssetGroup m_OrphanedShaders = new AssetGroup { header = "Orphaned Shaders", type = typeof(Shader) };
+    readonly AssetGroup m_OrphanedMaterials = new AssetGroup { header = "Orphaned Materials", type = typeof(Material) };
+    readonly AssetGroup m_OrphanedTextures = new AssetGroup { header = "Orphaned Textures", type = typeof(Texture) };
+    readonly AssetGroup m_OrphanedPrefabs = new AssetGroup { header = "Orphaned Prefabs", type = typeof(GameObject) };
+    readonly AssetGroup m_OrphanedScenes = new AssetGroup { header = "Orphaned Scenes", type = typeof(SceneAsset) };
+    readonly AssetGroup m_OrphanedGUISkins = new AssetGroup { header = "Orphaned GUI Skins", type = typeof(GUISkin) };
+
+    readonly HashSet<string> m_References = new HashSet<string>();
+    readonly List<AssetGroup> m_AssetGroups = new List<AssetGroup>();
 
     Vector2 m_Scroll;
+    IEnumerator m_Update;
+    readonly Stopwatch m_FrameTimer = new Stopwatch();
 
     [MenuItem("Window/Orphaned Assets")]
     static void Init()
@@ -30,136 +49,194 @@ class OrphanedAssets : EditorWindow
 
     void OnEnable()
     {
-        if (m_OrphanedShaders == null)
-            FindOrphans();
+        m_AssetGroups.Clear();
+        m_AssetGroups.Add(m_OrphanedShaders);
+        m_AssetGroups.Add(m_OrphanedMaterials);
+        m_AssetGroups.Add(m_OrphanedTextures);
+        m_AssetGroups.Add(m_OrphanedPrefabs);
+        m_AssetGroups.Add(m_OrphanedScenes);
+        m_AssetGroups.Add(m_OrphanedGUISkins);
 
-        EditorApplication.projectWindowChanged += FindOrphans;
+        RunFindOrpahnedAssets();
+        EditorApplication.projectWindowChanged += RunFindOrpahnedAssets;
+        EditorApplication.update += UpdateEnumerator;
     }
 
     void OnDisable()
     {
-        EditorApplication.projectWindowChanged -= FindOrphans;
+        EditorApplication.projectWindowChanged -= RunFindOrpahnedAssets;
+        EditorApplication.update -= UpdateEnumerator;
     }
 
-    void FindOrphans()
+    void UpdateEnumerator()
     {
-        m_OrphanedShaders = AssetDatabase.FindAssets("t:shader", k_SearchFolders).ToList();
-        m_OrphanedShaders.RemoveAll(guid => !AssetDatabase.GUIDToAssetPath(guid).Contains(".shader")
-            || ExcludePath(AssetDatabase.GUIDToAssetPath(guid)));
-
-        m_OrphanedTextures = AssetDatabase.FindAssets("t:texture", k_SearchFolders).ToList();
-        m_OrphanedTextures.RemoveAll(guid =>
+        if (m_Update != null)
         {
-            var materialPath = AssetDatabase.GUIDToAssetPath(guid);
-            var texture = AssetDatabase.LoadAssetAtPath<Texture>(materialPath);
-
-            // Cubemaps can have texture dependencies
-            var dependencies = EditorUtility.CollectDependencies(new[] {texture});
-            foreach (var dependency in dependencies)
+            var hasNext = true;
+            var oldUpdate = m_Update;
+            while (hasNext)
             {
-                OnReferenceFound(dependency);
+                if (m_FrameTimer.ElapsedTicks > k_FrameTimeTicks)
+                    break;
+
+                hasNext = m_Update.MoveNext();
             }
 
-            return ExcludePath(AssetDatabase.GUIDToAssetPath(guid));
-        });
+            //Check if update is equal to the old one in case we start a new coroutine right as the last one ends
+            if (!hasNext && m_Update == oldUpdate)
+                m_Update = null;
 
-        m_OrphanedMaterials = AssetDatabase.FindAssets("t:material", k_SearchFolders).ToList();
+            Repaint();
+        }
 
-        m_OrphanedScenes = AssetDatabase.FindAssets("t:scene", k_SearchFolders).ToList();
+        m_FrameTimer.Reset();
+        m_FrameTimer.Start();
+    }
 
-        m_OrphanedMaterials.RemoveAll(guid =>
+    void RunFindOrpahnedAssets()
+    {
+        m_Update = FindOrphanedAssets();
+    }
+
+    /// <summary>
+    /// Find orphaned assets and put them into lists which will be displayed in the GUI
+    /// The approach here is to first collect all assets of a given type within the search folders, and then check each
+    /// one for assets it might reference, while also excluding specified exclude paths
+    /// </summary>
+    IEnumerator FindOrphanedAssets()
+    {
+        m_References.Clear();
+        var shaders = m_OrphanedShaders.guids;
+        var materials = m_OrphanedMaterials.guids;
+        var textures = m_OrphanedTextures.guids;
+        var prefabs = m_OrphanedPrefabs.guids;
+        var scenes = m_OrphanedScenes.guids;
+        var guiSkins = m_OrphanedGUISkins.guids;
+
+        shaders.Clear();
+        materials.Clear();
+        textures.Clear();
+        prefabs.Clear();
+        scenes.Clear();
+        guiSkins.Clear();
+        shaders.UnionWith(AssetDatabase.FindAssets("t:shader", k_SearchFolders));
+        materials.UnionWith(AssetDatabase.FindAssets("t:material", k_SearchFolders));
+        textures.UnionWith(AssetDatabase.FindAssets("t:texture", k_SearchFolders));
+        prefabs.UnionWith(AssetDatabase.FindAssets("t:prefab", k_SearchFolders));
+        scenes.UnionWith(AssetDatabase.FindAssets("t:scene", k_SearchFolders));
+        guiSkins.UnionWith(AssetDatabase.FindAssets("t:guiskin", k_SearchFolders));
+
+        foreach (var guid in materials)
         {
             var materialPath = AssetDatabase.GUIDToAssetPath(guid);
-            var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-            var shader = material.shader;
-            var shaderPath = AssetDatabase.GetAssetPath(shader);
-
-            var propertyCount = ShaderUtil.GetPropertyCount(shader);
-            for (var i = 0; i < propertyCount; i++)
+            if (string.IsNullOrEmpty(materialPath))
             {
-                var propertyType = ShaderUtil.GetPropertyType(shader, i);
-                var propertyName = ShaderUtil.GetPropertyName(shader, i);
-                switch (propertyType)
-                {
-                    case ShaderUtil.ShaderPropertyType.TexEnv:
-                        var texture = material.GetTexture(propertyName);
-                        if (texture)
-                        {
-                            var texturePath = AssetDatabase.GetAssetPath(texture);
-                            m_OrphanedTextures.Remove(AssetDatabase.AssetPathToGUID(texturePath));
-                        }
-
-                        break;
-                }
+                m_References.Add(guid);
+                continue;
             }
 
-            m_OrphanedShaders.Remove(AssetDatabase.AssetPathToGUID(shaderPath));
+            CheckDependencies(materialPath);
 
-            return string.IsNullOrEmpty(materialPath) || materialPath.Contains(".ttf") || ExcludePath(materialPath);
-        });
+            if (materialPath.Contains(".ttf") || ExcludePath(materialPath))
+                m_References.Add(guid);
 
-        var prefabs = AssetDatabase.FindAssets("t:prefab", k_SearchFolders);
+            yield return null;
+        }
+
+        foreach (var guid in shaders)
+        {
+            var shaderPath = AssetDatabase.GUIDToAssetPath(guid);
+            if (!shaderPath.Contains(".shader"))
+            {
+                m_References.Add(guid);
+                continue;
+            }
+
+            CheckDependencies(shaderPath);
+
+            if (ExcludePath(shaderPath))
+                m_References.Add(guid);
+
+            yield return null;
+        }
+
         foreach (var guid in prefabs)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
-            var serializedObjects = new List<SerializedObject>();
-            SerializePrefab(serializedObjects, prefab);
+            var prefabPath = AssetDatabase.GUIDToAssetPath(guid);
+            CheckDependencies(prefabPath);
 
-            foreach (var o in serializedObjects)
-            {
-                var property = o.GetIterator();
-                while (property.Next(true))
-                {
-                    if (property.propertyType == SerializedPropertyType.ObjectReference)
-                    {
-                        var obj = property.objectReferenceValue;
+            if (ExcludePath(prefabPath))
+                m_References.Add(guid);
 
-                        if (obj == null)
-                            continue;
-
-                        OnReferenceFound(obj);
-                    }
-                }
-            }
+            yield return null;
         }
 
         var scripts = AssetDatabase.FindAssets("t:script", k_SearchFolders);
         foreach (var guid in scripts)
         {
-            var importer = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as MonoImporter;
-            if (importer)
-            {
-                var script = importer.GetScript();
-                CheckFieldInfo(script.GetClass(), importer);
-            }
+            var scriptPath = AssetDatabase.GUIDToAssetPath(guid);
+            CheckDependencies(scriptPath);
+
+            yield return null;
         }
 
         var buildScenes = EditorBuildSettings.scenes.Select(scene => scene.guid.ToString());
-        m_OrphanedScenes.RemoveAll(guid =>
+        foreach (var guid in scenes)
         {
-            var materialPath = AssetDatabase.GUIDToAssetPath(guid);
-            var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(materialPath);
-            var dependencies = EditorUtility.CollectDependencies(new[] {sceneAsset});
-            foreach (var dependency in dependencies)
-            {
-                OnReferenceFound(dependency);
-            }
+            var scenePath = AssetDatabase.GUIDToAssetPath(guid);
+            CheckDependencies(scenePath);
 
-            return buildScenes.Contains(guid);
-        });
+            // If the scene is included in the build, we consider it referenced, so remove it from the list
+            if (buildScenes.Contains(guid))
+                m_References.Add(guid);
+
+            yield return null;
+        }
+
+        foreach (var guid in textures)
+        {
+            var texturePath = AssetDatabase.GUIDToAssetPath(guid);
+            CheckDependencies(texturePath);
+
+            if (ExcludePath(texturePath))
+                m_References.Add(guid);
+
+            yield return null;
+        }
+
+        foreach (var guid in guiSkins)
+        {
+            var skinPath = AssetDatabase.GUIDToAssetPath(guid);
+            CheckDependencies(skinPath);
+
+            if (ExcludePath(skinPath))
+                m_References.Add(guid);
+
+            yield return null;
+        }
+
+        foreach (var assetGroup in m_AssetGroups)
+        {
+            assetGroup.guids.ExceptWith(m_References);
+        }
     }
 
-    void OnReferenceFound(UnityObject obj)
+    void CheckDependencies(string assetPath)
     {
-        var assetPath = AssetDatabase.GetAssetPath(obj);
-        if (obj is Material)
-            m_OrphanedMaterials.Remove(AssetDatabase.AssetPathToGUID(assetPath));
+        var dependencies = AssetDatabase.GetDependencies(assetPath);
+        foreach (var dependency in dependencies)
+        {
+            if (dependency == assetPath)
+                continue;
 
-        if (obj is Shader)
-            m_OrphanedShaders.Remove(AssetDatabase.AssetPathToGUID(assetPath));
+            OnReferenceFound(dependency);
+        }
+    }
 
-        if (obj is Texture || obj is Sprite)
-            m_OrphanedTextures.Remove(AssetDatabase.AssetPathToGUID(assetPath));
+    void OnReferenceFound(string assetPath)
+    {
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        m_References.Add(guid);
     }
 
     static bool ExcludePath(string assetPath)
@@ -173,94 +250,58 @@ class OrphanedAssets : EditorWindow
         return false;
     }
 
-    static void SerializePrefab(List<SerializedObject> serializedObjects, GameObject gameObject)
-    {
-        serializedObjects.Add(new SerializedObject(gameObject));
-        foreach (var component in gameObject.GetComponents<Component>())
-        {
-            if (!component)
-                continue;
-
-            serializedObjects.Add(new SerializedObject(component));
-        }
-
-        foreach (Transform child in gameObject.transform)
-        {
-            SerializePrefab(serializedObjects, child.gameObject);
-        }
-    }
-
-    void CheckFieldInfo(Type type, MonoImporter importer)
-    {
-        // Only show default properties for types that support it (so far only MonoBehaviour derived types)
-        if (!IsTypeCompatible(type))
-            return;
-
-        CheckFieldInfo(type.BaseType, importer);
-
-        var infos = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic |
-                                   BindingFlags.DeclaredOnly);
-        foreach (var field in infos)
-        {
-            if (!field.IsPublic)
-            {
-                var attr = field.GetCustomAttributes(typeof(SerializeField), true);
-                if (attr.Length == 0)
-                    continue;
-            }
-
-            if (field.FieldType.IsSubclassOf(typeof(UnityObject)) || field.FieldType == typeof(UnityObject))
-            {
-                var reference = importer.GetDefaultReference(field.Name);
-
-                if (typeof(Shader).IsAssignableFrom(field.FieldType))
-                    m_OrphanedShaders.Remove(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(reference)));
-
-                if (typeof(Material).IsAssignableFrom(field.FieldType))
-                    m_OrphanedMaterials.Remove(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(reference)));
-
-                if (typeof(Texture).IsAssignableFrom(field.FieldType))
-                    m_OrphanedTextures.Remove(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(reference)));
-
-                if (typeof(Sprite).IsAssignableFrom(field.FieldType))
-                    m_OrphanedTextures.Remove(AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(reference)));
-            }
-        }
-    }
-
-    static bool IsTypeCompatible(Type type)
-    {
-        if (type == null || !(type.IsSubclassOf(typeof(MonoBehaviour)) || type.IsSubclassOf(typeof(ScriptableObject))))
-            return false;
-
-        return true;
-    }
-
     void OnGUI()
     {
+        //Ctrl + w to close
+        var current = Event.current;
+        if (current.Equals(Event.KeyboardEvent("^w")))
+        {
+            Close();
+            current.Use();
+            GUIUtility.ExitGUI();
+        }
+
+        if (m_Update != null)
+        {
+            GUILayout.Label("Loading...");
+            GUIUtility.ExitGUI();
+            return;
+        }
+
         if (GUILayout.Button("Refresh"))
-            FindOrphans();
+            RunFindOrpahnedAssets();
 
         m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
 
-        OrphanGUI("Orphaned Shaders", m_OrphanedShaders, typeof(Shader));
-        OrphanGUI("Orphaned Materials", m_OrphanedMaterials, typeof(Material));
-        OrphanGUI("Orphaned Textures", m_OrphanedTextures, typeof(Texture));
-        OrphanGUI("Orphaned Scenes", m_OrphanedScenes, typeof(SceneAsset));
+        foreach (var assetGroup in m_AssetGroups)
+        {
+            OrphanedAssetGUI(assetGroup);
+        }
 
         EditorGUILayout.EndScrollView();
     }
 
-    static void OrphanGUI(string header, List<string> orphans, Type type)
+    static void OrphanedAssetGUI(AssetGroup group)
     {
-        EditorGUILayout.LabelField(header, orphans.Count.ToString());
+        var header = group.header;
+        var guids = group.guids;
+        var foldout = group.foldout;
+        foldout = EditorGUILayout.Foldout(foldout, string.Format("{0} - {1}", header, guids.Count), true);
+        group.foldout = foldout;
 
-        foreach (var orphan in orphans)
+        if (foldout)
         {
-            var asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphan), type);
-            EditorGUILayout.ObjectField(asset.name, asset, type, false);
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(15);
+            GUILayout.BeginVertical();
+            var type = group.type;
+            foreach (var orphanedAsset in guids)
+            {
+                var asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphanedAsset), type);
+                EditorGUILayout.ObjectField(asset.name, asset, type, false);
+            }
+            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
         }
-
-        GUILayout.Space(15);
     }
 }
