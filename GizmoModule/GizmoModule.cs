@@ -1,9 +1,5 @@
 ﻿#if UNITY_EDITOR
-using System.Collections;
-using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
-using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
 {
@@ -14,15 +10,16 @@ namespace Unity.Labs.SuperScience
         public const float rayLength = 100f;
         const float k_RayWidth = 0.001f;
 
-        readonly List<Renderer> m_Rays = new List<Renderer>();
-        int m_RayCount;
+        [SerializeField]
+        [Tooltip("Default sphere mesh used for drawing gizmo spheres.")]
+        Mesh m_SphereMesh;
 
-        readonly List<Renderer> m_Spheres = new List<Renderer>();
-        int m_SphereCount;
+        [SerializeField]
+        [Tooltip("Default cube mesh used for drawing gizmo boxes and rays.")]
+        Mesh m_CubeMesh;
 
-        readonly List<Renderer> m_Cubes = new List<Renderer>();
-        int m_CubeCount;
-
+        MaterialPropertyBlock m_GizmoProperties;
+        
         public Material gizmoMaterial
         {
             get { return m_GizmoMaterial; }
@@ -34,156 +31,58 @@ namespace Unity.Labs.SuperScience
         void Awake()
         {
             instance = this;
+            m_GizmoProperties = new MaterialPropertyBlock();
         }
-
-        void LateUpdate()
-        {
-            for (var i = m_RayCount; i < m_Rays.Count; i++)
-            {
-                m_Rays[i].gameObject.SetActive(false);
-            }
-
-            for (var i = m_SphereCount; i < m_Spheres.Count; i++)
-            {
-                m_Spheres[i].gameObject.SetActive(false);
-            }
-
-            for (var i = m_CubeCount; i < m_Cubes.Count; i++)
-            {
-                m_Cubes[i].gameObject.SetActive(false);
-            }
-
-            m_SphereCount = 0;
-            m_RayCount = 0;
-            m_CubeCount = 0;
-        }
-
+        
+        /// <summary>
+        /// Draws a ray for a single frame in all camera views
+        /// </summary>
+        /// <param name="origin">Where the ray should begin, in world space</param>
+        /// <param name="direction">Which direction the ray should point, in world space</param>
+        /// <param name="color">What color to draw the ray with</param>
+        /// <param name="viewerScale">Optional global scale to apply to match a scaled user</param>
+        /// <param name="rayLength">How long the ray should extend</param>
         public void DrawRay(Vector3 origin, Vector3 direction, Color color, float viewerScale = 1f, float rayLength = rayLength)
         {
-            Renderer ray;
-            if (m_Rays.Count > m_RayCount)
-            {
-                ray = m_Rays[m_RayCount];
-            }
-            else
-            {
-                ray = GameObject.CreatePrimitive(PrimitiveType.Cube).GetComponent<Renderer>();
-                Destroy(ray.GetComponent<Collider>());
-                ray.transform.parent = transform;
-                ray.sharedMaterial = Instantiate(m_GizmoMaterial);
-                m_Rays.Add(ray);
-            }
-
-            ray.gameObject.SetActive(true);
-            ray.sharedMaterial.color = color;
-            var rayTransform = ray.transform;
-            var rayWidth = k_RayWidth * viewerScale;
-            rayTransform.localScale = new Vector3(rayWidth, rayWidth, rayLength);
             direction.Normalize();
-            rayTransform.position = origin + direction * rayLength * 0.5f;
-            rayTransform.rotation = Quaternion.LookRotation(direction);
+            m_GizmoProperties.SetColor("_Color", color);
+            
+            var rayPosition = origin + direction * rayLength * 0.5f;
+            var rayRotation = Quaternion.LookRotation(direction);
+            var rayWidth = k_RayWidth * viewerScale;
+            var rayScale = new Vector3(rayWidth, rayWidth, rayLength);
+            var rayMatrix = Matrix4x4.TRS(rayPosition, rayRotation, rayScale);
 
-            m_RayCount++;
+            Graphics.DrawMesh(m_CubeMesh, rayMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
         }
 
+        /// <summary>
+        /// Draws a sphere for a single frame in all camera views
+        /// </summary>
+        /// <param name="center">The center of the sphere, in world space</param>
+        /// <param name="radius">The radius of the sphere, in meters</param>
+        /// <param name="color">What color to draw the sphere with</param>
         public void DrawSphere(Vector3 center, float radius, Color color)
         {
-            Renderer sphere;
-            if (m_Spheres.Count > m_SphereCount)
-            {
-                sphere = m_Spheres[m_SphereCount];
-            }
-            else
-            {
-                sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere).GetComponent<Renderer>();
-                Destroy(sphere.GetComponent<Collider>());
-                sphere.transform.parent = transform;
-                sphere.sharedMaterial = Instantiate(m_GizmoMaterial);
-                m_Spheres.Add(sphere);
-            }
+            m_GizmoProperties.SetColor("_Color", color);
 
-            sphere.gameObject.SetActive(true);
-            sphere.sharedMaterial.color = color;
-            var sphereTransform = sphere.transform;
-            sphereTransform.localScale = Vector3.one * radius;
-            sphereTransform.position = center;
-
-            m_SphereCount++;
+            var sphereMatrix = Matrix4x4.TRS(center, Quaternion.identity, Vector3.one * radius);
+            Graphics.DrawMesh(m_SphereMesh, sphereMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
         }
 
+        /// <summary>
+        /// Draws a cube for a single frame in all camera views
+        /// </summary>
+        /// <param name="position">The center of the cube, in world space</param>
+        /// <param name="rotation">The orientation of the cube, in world space</param>
+        /// <param name="scale">The scale of the cube</param>
+        /// <param name="color">What color to draw the cube with</param>
         public void DrawCube(Vector3 position, Quaternion rotation, Vector3 scale, Color color)
         {
-            Renderer cube;
-            if (m_Cubes.Count > m_CubeCount)
-            {
-                cube = m_Cubes[m_CubeCount];
-            }
-            else
-            {
-                cube = GameObject.CreatePrimitive(PrimitiveType.Cube).GetComponent<Renderer>();
-                Destroy(cube.GetComponent<Collider>());
-                cube.transform.parent = transform;
-                cube.sharedMaterial = Instantiate(m_GizmoMaterial);
-                m_Cubes.Add(cube);
-            }
+            m_GizmoProperties.SetColor("_Color", color);
 
-            cube.gameObject.SetActive(true);
-            cube.sharedMaterial.color = color;
-            var cubeTransform = cube.transform;
-            cubeTransform.localScale = scale;
-            cubeTransform.position = position;
-            cubeTransform.rotation = rotation;
-
-            m_CubeCount++;
-        }
-
-        void OnDestroy()
-        {
-            foreach (var ray in m_Rays)
-            {
-                Destroy(ray.GetComponent<Renderer>().sharedMaterial);
-            }
-
-            foreach (var sphere in m_Spheres)
-            {
-                Destroy(sphere.GetComponent<Renderer>().sharedMaterial);
-            }
-        }
-
-        void Destroy(UnityObject o, float t = 0f, bool withUndo = false)
-        {
-            if (Application.isPlaying)
-            {
-                UnityObject.Destroy(o, t);
-            }
-#if UNITY_EDITOR
-            else
-            {
-                if (Mathf.Approximately(t, 0f))
-                {
-                    if (withUndo)
-                        Undo.DestroyObjectImmediate(o);
-                    else
-                        DestroyImmediate(o);
-                }
-                else
-                {
-                    StartCoroutine(DestroyInSeconds(o, t));
-                }
-            }
-#endif
-        }
-
-        static IEnumerator DestroyInSeconds(UnityObject o, float t, bool withUndo = false)
-        {
-            var startTime = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup <= startTime + t)
-                yield return null;
-
-            if (withUndo)
-                Undo.DestroyObjectImmediate(o);
-            else
-                DestroyImmediate(o);
+            var cubeMatrix = Matrix4x4.TRS(position, rotation, scale);
+            Graphics.DrawMesh(m_CubeMesh, cubeMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
         }
     }
 }
