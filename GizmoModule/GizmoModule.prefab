@@ -51,4 +51,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f67e9003e9c88ff40abe2e8589e3d7c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_SphereMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  m_CubeMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   m_GizmoMaterial: {fileID: 2100000, guid: ffb9b026dfef0964a9034bfdb7f5abe7, type: 2}

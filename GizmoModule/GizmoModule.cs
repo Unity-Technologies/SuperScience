@@ -7,7 +7,7 @@ namespace Unity.Labs.SuperScience
     {
         public static GizmoModule instance;
 
-        public const float rayLength = 100f;
+        public const float RayLength = 100f;
         const float k_RayWidth = 0.001f;
 
         [SerializeField]
@@ -42,8 +42,11 @@ namespace Unity.Labs.SuperScience
         /// <param name="color">What color to draw the ray with</param>
         /// <param name="viewerScale">Optional global scale to apply to match a scaled user</param>
         /// <param name="rayLength">How long the ray should extend</param>
-        public void DrawRay(Vector3 origin, Vector3 direction, Color color, float viewerScale = 1f, float rayLength = rayLength)
+        public void DrawRay(Vector3 origin, Vector3 direction, Color color, float viewerScale = 1f, float rayLength = RayLength)
         {
+            if (direction == Vector3.zero)
+                return;
+
             direction.Normalize();
             m_GizmoProperties.SetColor("_Color", color);
             

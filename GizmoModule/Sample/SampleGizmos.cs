@@ -1,10 +1,21 @@
 ﻿using Unity.Labs.SuperScience;
 using UnityEngine;
+using UnityEngine.SpatialTracking;
+using UnityEngine.XR;
 
 public class SampleGizmos : MonoBehaviour
 {
     [SerializeField]
     Transform m_OtherHand;
+
+    void Start()
+    {
+        if (XRDevice.isPresent)
+        {
+            GetComponent<TrackedPoseDriver>().enabled = true;
+            m_OtherHand.GetComponent<TrackedPoseDriver>().enabled = true;
+        }
+    }
 
     void Update()
     {
