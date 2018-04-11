@@ -19,7 +19,7 @@ namespace Unity.Labs.SuperScience
         /// The number of discrete steps to store physics samples in
         /// </summary>
         const int k_Steps = 4;
-
+        const int k_SampleLength = k_Steps + 1;
         /// <summary>
         /// The time period stored within a simple step sample
         /// </summary>
@@ -29,7 +29,8 @@ namespace Unity.Labs.SuperScience
         /// Weight to use for the most recent physics sample, when doing prediction
         /// </summary>
         const float k_NewSampleWeight = 2.0f;
-        
+        const float k_AdditiveWeight = k_NewSampleWeight - 1.0f;
+
         /// <summary>
         /// Stores one sample of physics data
         /// </summary>
@@ -44,7 +45,11 @@ namespace Unity.Labs.SuperScience
         // last sample in the list for smooth transitions
         float m_SampleTime = 0.0f;
         Sample[] m_Samples = new Sample[k_Steps + 1];
-        
+        // We treat the sample list as a circular array because it makes
+        // the algorithm both faster and simpler - we need to access all this data
+        // all the time, and also shift out the old data as new data comes in
+        int m_SampleIndex = 0;
+
         // Previous-frame history for integrating velocity
         Vector3 m_LastPosition = Vector3.zero;
         Quaternion m_LastRotation = Quaternion.identity;
@@ -86,6 +91,7 @@ namespace Unity.Labs.SuperScience
             // The last sample is reset to 0, as it will pull in new values from our input sources
             m_SampleTime = 0.0f;
             m_Samples[k_Steps] = new Sample { angle = 0, distance = 0 };
+            m_SampleIndex = k_Steps;
         }
 
         public void Update(Vector3 newPosition, Quaternion newRotation, float timeSlice)
@@ -122,56 +128,58 @@ namespace Unity.Labs.SuperScience
                 return;
             }
 
-            // Attempt to fill up the most recent sample
-            var timeToAdd = Mathf.Min(timeSlice, k_SamplePeriod - m_SampleTime);
-            var timePercent = (timeToAdd / timeSlice);
-            timeSlice -= timeToAdd;
-            m_SampleTime += timeToAdd;
-
-            m_Samples[k_Steps].distance += currentDistance * timePercent;
-            m_Samples[k_Steps].angle += currentAngle * timePercent;
-
-            // Did we fill up our sample?
-            if (timeSlice > 0)
+            // Otherwise, fill up as many time samples as needed
+            while (timeSlice > 0)
             {
-                var sampleShift = Mathf.FloorToInt(timeSlice / k_SamplePeriod) + 1;
-                var shiftEnd = k_Steps - sampleShift + 1;
+                 var timeToAdd = Mathf.Min(timeSlice, k_SamplePeriod - m_SampleTime);
+                timeSlice -= timeToAdd;
+                var timePercent = (timeToAdd / timeSlice);
 
-                // Shift the remaining data as much as needed
-                for (var i = 0; i < shiftEnd; i++)
+                m_Samples[m_SampleIndex].distance += currentDistance * timePercent;
+                m_Samples[m_SampleIndex].angle += currentAngle * timePercent;
+
+                // Did we fill up the sample?
+                if (timeSlice > 0)
                 {
-                    m_Samples[i] = m_Samples[i + sampleShift];
+                    // If so, throw out the oldest sample and store our data in that now instead
+                    m_SampleIndex = (m_SampleIndex + 1) % k_SampleLength;
+                    m_Samples[m_SampleIndex] = new Sample { angle = 0, distance = 0 };
+                    m_SampleTime = 0;
                 }
-
-                // Any data over 1 sample shift gets loaded in with a full sample of data
-                for (var i = shiftEnd; i < k_Steps; i++)
+                else
                 {
-                    m_Samples[i].distance = currentDistance * k_SamplePeriod;
-                    m_Samples[i].angle = currentAngle * k_SamplePeriod;
-                    timeSlice -= m_SampleTime;
+                    m_SampleTime += timeToAdd;
                 }
-
-                // Fill in the final 'current' sample of data
-                m_Samples[k_Steps].distance = currentDistance * timeSlice;
-                m_Samples[k_Steps].angle = currentAngle * timeSlice;
-                m_SampleTime = timeSlice;
             }
 
             // Generate the average sample
+            // Accumulate the total magnitude of distance that has been moved over our sample period
+            var activeIndex = (m_SampleIndex + 1) % k_SampleLength;
             var edgeBlend = (m_SampleTime / k_SamplePeriod);
             var invEdgeBlend = 1.0f - edgeBlend;
-            var totalDistance = m_Samples[0].distance * invEdgeBlend;
-            var totalAngle = m_Samples[0].angle * invEdgeBlend;
- 
-            for (var i = 1; i < k_Steps; i++)
+
+            // The last sample gets faded out as a new sample becomes available
+            var totalDistance = m_Samples[activeIndex].distance * invEdgeBlend;
+            var totalAngle = m_Samples[activeIndex].distance * invEdgeBlend;
+            activeIndex = (activeIndex + 1) % k_SampleLength;
+
+            // All intermediate samples get added in full
+            for (var i = 1; i < (k_Steps - 1); i++)
             {
-                totalDistance += m_Samples[i].distance;
-                totalAngle += m_Samples[i].distance;
+                totalDistance += m_Samples[activeIndex].distance;
+                totalAngle += m_Samples[activeIndex].angle;
+
+                activeIndex = (activeIndex + 1) % k_SampleLength;
             }
+            // The second to last sample get scaled by predictive weighting
+            totalDistance += m_Samples[activeIndex].distance * invEdgeBlend * k_AdditiveWeight;
+            totalDistance += m_Samples[activeIndex].distance * invEdgeBlend * k_AdditiveWeight;
+            activeIndex = (activeIndex + 1) % k_SampleLength;
 
-            totalDistance += m_Samples[k_Steps].distance * edgeBlend * k_NewSampleWeight;
-            totalAngle += m_Samples[k_Steps].angle * edgeBlend * k_NewSampleWeight;
-
+            // The last sample gets fully predictve weighted
+            totalDistance += m_Samples[activeIndex].distance * edgeBlend * k_NewSampleWeight;
+            totalDistance += m_Samples[activeIndex].distance * edgeBlend * k_NewSampleWeight;
+            
             Speed = totalDistance / k_Period;
             Velocity = Direction * Speed;
 
