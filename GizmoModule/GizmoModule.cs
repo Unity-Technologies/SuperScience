@@ -9,7 +9,6 @@ namespace Unity.Labs.SuperScience
 
         public const float RayLength = 100f;
         const float k_RayWidth = 0.001f;
-        const int k_MaxWedgePoints = 16;
 
         [SerializeField]
         [Tooltip("Default sphere mesh used for drawing gizmo spheres.")]
@@ -19,6 +18,10 @@ namespace Unity.Labs.SuperScience
         [Tooltip("Default cube mesh used for drawing gizmo boxes and rays.")]
         Mesh m_CubeMesh;
 
+        [SerializeField]
+        [Tooltip("Default quad mesh used for drawing gizmo wedges.")]
+        Mesh m_QuadMesh;
+
         MaterialPropertyBlock m_GizmoProperties;
         
         public Material gizmoMaterial
@@ -26,8 +29,16 @@ namespace Unity.Labs.SuperScience
             get { return m_GizmoMaterial; }
         }
 
+        public Material gizmoCutoffMaterial
+        {
+            get { return m_GizmoCutoffMaterial; }
+        }
+
         [SerializeField]
         Material m_GizmoMaterial;
+
+        [SerializeField]
+        Material m_GizmoCutoffMaterial;
 
         void Awake()
         {
@@ -90,45 +101,20 @@ namespace Unity.Labs.SuperScience
         }
 
         /// <summary>
-        /// Draws a wedge for a single frame in all camera views
+        ///  Draws a wedge for a single frame in all camera views
         /// </summary>
-        /// <param name="center">The center of the wedge, in world space</param>
-        /// <param name="forward">The forward axis to draw the wedge around</param>
-        /// <param name="up">The starting direction of the wedge endpoint</param>
-        /// <param name="radius">How big to make the wedge</param>
-        /// <param name="angle">How big of an arc the wedge should cover</param>
-        /// <param name="color">What color to draw the wedge with</param>
-        /// <param name="viewerScale">Optional global scale to apply to match a scaled user</param>
-        public void DrawWedge(Vector3 center, Vector3 forward, Vector3 up, float radius, float angle, Color color, float viewerScale = 1f)
+        /// <param name="position"></param>
+        /// <param name="rotation"></param>
+        /// <param name="radius"></param>
+        /// <param name="angle"></param>
+        /// <param name="color"></param>
+        public void DrawWedge(Vector3 position, Quaternion rotation, float radius, float angle, Color color)
         {
-            if (forward == Vector3.zero || up == Vector3.zero)
-                return;
-
-            angle = Mathf.Min(Mathf.Abs(angle), 360.0f);
-
-            forward.Normalize();
-            up.Normalize();
             m_GizmoProperties.SetColor("_Color", color);
+            m_GizmoProperties.SetFloat("_Edge", 1.0f -  (angle / 360.0f));
 
-            // Draw a ray from the origin to the start of the wedge
-            var rayOrigin = center + up * radius * 0.5f;
-            var rayWidth = k_RayWidth * viewerScale;
-            var rayScale = new Vector3(rayWidth, rayWidth, radius);
-            var rayRotation = Quaternion.LookRotation(up);
-            var rayMatrix = Matrix4x4.TRS(rayOrigin, rayRotation, rayScale);
-
-            Graphics.DrawMesh(m_CubeMesh, rayMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
-
-            // Draw a ray from the origin to the end of the wedge
-            var endRotation = Quaternion.AngleAxis(angle, forward);
-            rayOrigin = center + endRotation * up  * radius * 0.5f;
-            rayRotation = endRotation * rayRotation;
-            rayMatrix = Matrix4x4.TRS(rayOrigin, rayRotation, rayScale);
-            Graphics.DrawMesh(m_CubeMesh, rayMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
-
-            // Draw an arc from the start to the end of the wedge
-            var arcPoints = k_MaxWedgePoints * Mathf.CeilToInt(angle / 360.0f);
-
+            var wedgeMatrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
+            Graphics.DrawMesh(m_QuadMesh, wedgeMatrix, m_GizmoCutoffMaterial, 0, null, 0, m_GizmoProperties);
         }
     }
 }
