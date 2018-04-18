@@ -173,10 +173,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ToTrack: {fileID: 631019739}
   m_DrawSmoothSpeed: 1
-  m_DrawSmoothAcceleration: 1
-  m_DrawAngularVelocity: 1
+  m_DrawSmoothAcceleration: 0
+  m_DrawAngularVelocity: 0
   m_DrawDirectSpeed: 1
-  m_UseDirection: 1
+  m_UseDirection: 0
 --- !u!1 &751860149
 GameObject:
   m_ObjectHideFlags: 0
@@ -309,9 +309,9 @@ MonoBehaviour:
   m_ToTrack: {fileID: 1063744512}
   m_DrawSmoothSpeed: 1
   m_DrawSmoothAcceleration: 1
-  m_DrawAngularVelocity: 1
+  m_DrawAngularVelocity: 0
   m_DrawDirectSpeed: 0
-  m_UseDirection: 0
+  m_UseDirection: 1
 --- !u!1 &1243400097
 GameObject:
   m_ObjectHideFlags: 0
