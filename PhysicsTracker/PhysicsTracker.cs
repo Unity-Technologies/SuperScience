@@ -44,6 +44,12 @@ namespace Unity.Labs.SuperScience
         const int k_SampleLength = k_Steps + 1;
 
         /// <summary>
+        /// Minimum angle needed to actually record angular velocity.
+        /// Too small a value results in wildly flailing angular axis as low velocities
+        /// </summary>
+        const float k_MinAngle = 1f;
+
+        /// <summary>
         /// Stores one sample of offset data, for calculating smooth speeds
         /// </summary>
         struct OffsetSample
@@ -170,7 +176,18 @@ namespace Unity.Labs.SuperScience
             float currentAngle;
             var activeAxis = Vector3.zero;
             rotationOffset.ToAngleAxis(out currentAngle, out activeAxis);
-            m_LastRotation = newRotation;
+
+            // Extremely small deltas make for a wildly unpredictable axis
+            if (currentAngle < k_MinAngle)
+            {
+                currentAngle = 0.0f;
+                activeAxis = AngularAxis;
+            }
+            else
+            {
+                m_LastRotation = newRotation;
+            }
+            
         
             // We don't need to handle motion over a larger period of time than our full sampling period
             if (timeSlice > k_Period)

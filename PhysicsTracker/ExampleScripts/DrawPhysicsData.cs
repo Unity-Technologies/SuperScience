@@ -98,7 +98,8 @@ namespace Unity.Labs.SuperScience.Example
                 // If someone wants to see the active axis, draw that as an additional ray
                 if (m_UseDirection)
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, m_MotionData.AngularAxis, Color.white, 1.0f, k_AngularAxisLength);
+                    // We draw the axis centered - rotating one way or another can flip the axis and it just adds visual noise.
+                    GizmoModule.instance.DrawRay(m_ToTrack.position - m_MotionData.AngularAxis*k_AngularAxisLength*0.5f, m_MotionData.AngularAxis, Color.white, 1.0f, k_AngularAxisLength);
                 }
             }
 
