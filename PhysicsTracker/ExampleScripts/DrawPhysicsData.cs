@@ -79,13 +79,13 @@ namespace Unity.Labs.SuperScience.Example
             {
                 if (m_UseDirection)
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, m_MotionData.Direction, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationMagnitude*k_RayScale);
+                    GizmoModule.instance.DrawRay(m_ToTrack.position, m_MotionData.Direction, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength*k_RayScale);
                     GizmoModule.instance.DrawSphere(m_ToTrack.position + m_MotionData.Acceleration*k_RayScale, k_RayEndcap, k_SmoothAccColor);
                 }
                 else
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, transform.forward, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationMagnitude*k_RayScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + transform.forward*m_MotionData.AccelerationMagnitude*k_RayScale, k_RayEndcap, k_SmoothAccColor);
+                    GizmoModule.instance.DrawRay(m_ToTrack.position, transform.forward, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength*k_RayScale);
+                    GizmoModule.instance.DrawSphere(m_ToTrack.position + transform.forward*m_MotionData.AccelerationStrength*k_RayScale, k_RayEndcap, k_SmoothAccColor);
                 }
             }
 

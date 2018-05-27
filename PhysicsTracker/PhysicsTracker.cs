@@ -14,7 +14,8 @@ namespace Unity.Labs.SuperScience
         /// The time period that the physics values are averaged over
         /// </summary>
         const float k_Period = 0.125f;
-        
+        const float k_HalfPeriod = k_Period*0.5f;
+
         /// <summary>
         /// The number of discrete steps to store physics samples in
         /// </summary>
@@ -44,20 +45,33 @@ namespace Unity.Labs.SuperScience
         const int k_SampleLength = k_Steps + 1;
 
         /// <summary>
+        /// Minimum distance we'll record offsets for
+        /// This helps stabilize our direction.  We ultimately do record the given offsets
+        /// so the actual tracking should remain accurate
+        /// This value is 1mm as most VR hardware is designed to be sub-millimeter
+        /// </summary>
+        const float k_MinOffset = 0.001f;
+
+        /// <summary>
         /// Minimum angle needed to actually record angular velocity.
         /// Too small a value results in wildly flailing angular axis as low velocities
         /// </summary>
         const float k_MinAngle = 1f;
 
         /// <summary>
-        /// Stores one sample of offset data, for calculating smooth speeds
+        /// Stores one sample of tracked physics data
         /// </summary>
-        struct OffsetSample
+        struct Sample
         {
             public float distance;
             public float angle;
             public Vector3 offset;
             public Vector3 axisOffset;
+
+            //public float speed;
+            //public float angularSpeed;
+
+            public float time;
 
             /// <summary>
             /// Helper function used to combine all the tracked samples up
@@ -66,38 +80,29 @@ namespace Unity.Labs.SuperScience
             /// <param name="scalar">How much to scale the other sample's values</param>
             /// <param name="directionAnchor">A direction that informs which way the offset values should be pointing</param>
             /// <param name="axisAnchor">A direction that informs which way the axis values should be pointing</param>
-            public void Accumulate(OffsetSample other, float scalar, Vector3 directionAnchor, Vector3 axisAnchor)
+            public void Accumulate(ref Sample other, float scalar, Vector3 directionAnchor, Vector3 axisAnchor)
             {
                 distance += other.distance * scalar;
                 angle += other.angle * scalar;
                 offset += other.offset * Vector3.Dot(directionAnchor, other.offset);
                 axisOffset += other.axisOffset * Vector3.Dot(axisAnchor, other.axisOffset);
+                time += other.time * scalar;
             }
         }
 
-        /// <summary>
-        /// Stores one sample of speed data, for calculating smooth acceleration
-        /// </summary>
-        struct SpeedSample
-        {
-            public float speed;
-            public float angularSpeed;
-        }
-
-        // We store the time elapsed in the current sample, so we can determine
-        // when enough data has been accumulated, and how much to fade out the 
-        // last sample in the list for smooth transitions
-        float m_SampleTime = 0.0f;
-        OffsetSample[] m_Samples = new OffsetSample[k_SampleLength];
-        SpeedSample[] m_Speeds = new SpeedSample[k_SampleLength];
-
+        // We store all the sampled frame data in a circular array for tightest packing 
+        // We don't need to store the 'end' index in our array, as when we reset we always
+        // make sure the frame time in that reset sample is the maximum we need
+        int m_CurrentSampleIndex = -1;
+        Sample[] m_Samples = new Sample[k_SampleLength];
+        
         // Previous-frame history for integrating velocity
         Vector3 m_LastPosition = Vector3.zero;
         Quaternion m_LastRotation = Quaternion.identity;
 
         // Output data
         public float Speed { get; set; }
-        public float AccelerationMagnitude { get; set; }
+        public float AccelerationStrength { get; set; }
         public Vector3 Direction { get; set; }
         public Vector3 Velocity { get; set; }
         public Vector3 Acceleration { get; set; }
@@ -105,7 +110,7 @@ namespace Unity.Labs.SuperScience
         public float AngularSpeed { get; set; }
         public Vector3 AngularAxis { get; set; }
         public Vector3 AngularVelocity { get; set; }
-        public float AngularAccelerationMagnitude { get; set; }
+        public float AngularAccelerationStrength { get; set; }
         public Vector3 AngularAcceleration { get; set; }
 
         /// <summary>
@@ -125,29 +130,18 @@ namespace Unity.Labs.SuperScience
             Speed = currentVelocity.magnitude;
             Direction = currentVelocity.normalized;
             Velocity = currentVelocity;
-            AccelerationMagnitude = 0.0f;
+            AccelerationStrength = 0.0f;
             Acceleration = Vector3.zero;
 
             AngularSpeed = currentAngularVelocity.magnitude * Mathf.Rad2Deg;
             AngularAxis = currentAngularVelocity.normalized;
             AngularVelocity = currentAngularVelocity;
 
-            var constantOffset = currentVelocity * k_SamplePeriod;
-            var constantAxis = AngularAxis * k_SamplePeriod;
-            var constantDistance = Speed * k_SamplePeriod;
-            var constantAngle = AngularSpeed * k_SamplePeriod;
-
-            // Reset the chunks to match this history as well
-            for (var i = 0; i < k_Steps; i++)
-            {
-                m_Samples[i] = new OffsetSample { angle = constantAngle, distance = constantDistance, offset = constantOffset, axisOffset = constantAxis };
-                m_Speeds[i] = new SpeedSample { speed = Speed, angularSpeed = AngularSpeed };
-            }
-
-            // The last sample is reset to 0, as it will pull in new values from our input sources
-            m_SampleTime = 0.0f;
-            m_Samples[k_Steps] = new OffsetSample { angle = 0, distance = 0 };
-            m_Speeds[k_Steps] = new SpeedSample { speed = Speed, angularSpeed = AngularSpeed };
+            m_CurrentSampleIndex = 0;
+            m_Samples[0] = new Sample { distance = Speed * k_Period, offset = Velocity * k_Period,
+                                        angle = AngularSpeed * k_Period, axisOffset = AngularAxis * k_Period,
+                                        //speed = Speed, angularSpeed = AngularSpeed,
+                                        time = k_Period };
         }
 
         /// <summary>
@@ -158,6 +152,13 @@ namespace Unity.Labs.SuperScience
         /// <param name="timeSlice">How much time has passed since the last pose update</param>
         public void Update(Vector3 newPosition, Quaternion newRotation, float timeSlice)
         {
+            // Automatically reset, if we have not done so initially
+            if (m_CurrentSampleIndex == -1)
+            {
+                Reset(newPosition, newRotation, Vector3.zero, Vector3.zero);
+                return;
+            }
+
             if (timeSlice <= 0.0f)
             {
                 return;
@@ -169,7 +170,18 @@ namespace Unity.Labs.SuperScience
             // We use different techniques that are well suited for direction and 'speed', and then recombine to velocity later
             var currentDistance = currentOffset.magnitude;
             var activeDirection = currentOffset.normalized;
-            m_LastPosition = newPosition;
+
+            // We skip extremely small deltas and wait for more reliable changes in offset
+            if (currentDistance < k_MinOffset)
+            {
+                currentOffset = Vector3.zero;
+                currentDistance = 0.0f;
+                activeDirection = Direction;
+            }
+            else
+            {
+                m_LastPosition = newPosition;
+            }
 
             // Update angular data in the same fashion
             var rotationOffset = newRotation * Quaternion.Inverse(m_LastRotation);
@@ -187,100 +199,68 @@ namespace Unity.Labs.SuperScience
             {
                 m_LastRotation = newRotation;
             }
+            // We let strong rotations have more of an effect on the axis of rotation than weak ones
+            var axisDistance = (Mathf.Max(currentAngle, k_MinAngle) / 360.0f);
+
+            // Add new data to the current sample
+            m_Samples[m_CurrentSampleIndex].distance += currentDistance;
+            m_Samples[m_CurrentSampleIndex].offset += currentOffset;
+            m_Samples[m_CurrentSampleIndex].angle += currentAngle;
+            m_Samples[m_CurrentSampleIndex].axisOffset += activeAxis*axisDistance;
+            m_Samples[m_CurrentSampleIndex].time += timeSlice;
+
+            // Accumulate and generate our new smooth, predicted physics values
+            var combinedSample = m_Samples[m_CurrentSampleIndex];
+            var sampleIndex = (m_CurrentSampleIndex + 1) % k_SampleLength;
+
+            while (combinedSample.time < k_Period)
+            {
+                var overTimeScalar = Mathf.Clamp01((k_Period - combinedSample.time) / m_Samples[sampleIndex].time);
+
+                combinedSample.Accumulate(ref m_Samples[sampleIndex], overTimeScalar, activeDirection, activeAxis);
+                sampleIndex = (sampleIndex + 1) % k_SampleLength;
+            }
+
+            // Another accumulation step to weight earlier values stronger for prediction
+            sampleIndex = m_CurrentSampleIndex;
+            while (combinedSample.time < k_PredictedPeriod)
+            {
+                var overTimeScalar = Mathf.Clamp01((k_PredictedPeriod - combinedSample.time) / m_Samples[sampleIndex].time);
+
+                combinedSample.Accumulate(ref m_Samples[sampleIndex], overTimeScalar, activeDirection, activeAxis);
+                sampleIndex = (sampleIndex + 1) % k_SampleLength;
+            }
+
             
-        
-            // We don't need to handle motion over a larger period of time than our full sampling period
-            if (timeSlice > k_Period)
-            {
-                var timeSliceAdjustment = k_Period / timeSlice;
-                timeSlice = k_Period;
-                currentOffset *= timeSliceAdjustment;
-                currentAngle *= timeSliceAdjustment;
-            }
-
-            // As new motion comes in, we need to free up space in our sampling buffer for make room for it
-            // Annother option would be a circular array, but it makes the smoothing/prediction steps more expensive
-            var shiftAmount = Mathf.FloorToInt((m_SampleTime + timeSlice) / k_SamplePeriod);
-            var sampleIndex = k_Steps - shiftAmount;
-            
-            if (shiftAmount > 0)
-            {
-                var shiftIndex = shiftAmount;
-                while (shiftIndex < k_SampleLength)
-                {
-                    m_Samples[shiftIndex - shiftAmount] = m_Samples[shiftIndex];
-                    m_Speeds[shiftIndex - shiftAmount] = m_Speeds[shiftIndex];
-                    shiftIndex++;
-                }
-            }
-
-            // Fill up all the samples we freed up with our single-frame offset data
-            var activeTimeSlice = timeSlice;
-            while (activeTimeSlice > 0)
-            {
-                var timeToAdd = Mathf.Min(activeTimeSlice, k_SamplePeriod - m_SampleTime);
-                var timePercent = (timeToAdd / timeSlice);
-                activeTimeSlice -= timeToAdd;
-
-                m_Samples[sampleIndex].distance += currentDistance * timePercent;
-                m_Samples[sampleIndex].angle += currentAngle * timePercent;
-                m_Samples[sampleIndex].offset += currentOffset * timePercent;
-                m_Samples[sampleIndex].axisOffset += activeAxis * timePercent;
-
-                // If we filled up the sample, prepare the next sample for writing
-                if (activeTimeSlice > 0)
-                {
-                    sampleIndex++;
-                    m_Samples[sampleIndex] = new OffsetSample();
-                    m_Speeds[sampleIndex] = new SpeedSample { speed = Speed, angularSpeed = AngularSpeed };
-                    m_SampleTime = 0;
-                }
-                else
-                {
-                    m_SampleTime += timeToAdd;
-                }
-            }
-
-            // Generate new physics values
-            // Speed and angle comes from an average of all the motion magnitude
-            // Direction comes from the current frame offset, shifted by the total offset the tracker
-            // has experienced over the sampling period.  The more perpendicular the motion is, the less impact it has
-
-            // The oldest sample is faded out as the new data is coming in
-            var edgeBlend = (m_SampleTime / k_SamplePeriod);
-            var invEdgeBlend = 1.0f - edgeBlend;
-
-            var comboSample = new OffsetSample();
-            comboSample.Accumulate(m_Samples[0], invEdgeBlend, activeDirection, activeAxis);
-
-            // Inner samples follow regular averaging rules
-            for (var i = 1; i < k_Steps - 1; i++)
-            {
-                comboSample.Accumulate(m_Samples[i], 1.0f, activeDirection, activeAxis);
-            }
-
-            // The second newest sample loses its predictive weighting as the newest sample fills up
-            // Thew newest sample is fully predictive
-            comboSample.Accumulate(m_Samples[k_Steps - 1], 1.0f + (invEdgeBlend * k_AdditiveWeight), activeDirection, activeAxis);
-            comboSample.Accumulate(m_Samples[k_Steps], k_NewSampleWeight, activeDirection, activeAxis);
-
-            Speed = comboSample.distance / k_PredictedPeriod;
-            Direction = comboSample.offset.normalized;
+            // Our combo sample is ready to be used to generate physics output
+            Speed = combinedSample.distance / k_PredictedPeriod;
+            Direction = combinedSample.offset.normalized;
             Velocity = Direction * Speed;
 
-            AngularSpeed = comboSample.angle / k_PredictedPeriod;
-            AngularAxis = comboSample.axisOffset.normalized;
+            AngularSpeed = combinedSample.angle / k_PredictedPeriod;
+            AngularAxis = combinedSample.axisOffset.normalized;
             AngularVelocity = AngularAxis * AngularSpeed * Mathf.Deg2Rad;
 
             // We compare the newest and oldest velocity samples to get the new acceleration
-            var speedDelta = Mathf.Lerp(m_Speeds[k_Steps - 1].speed - m_Speeds[0].speed, m_Speeds[k_Steps].speed - m_Speeds[1].speed, edgeBlend);
-            var angularSpeedDelta = Mathf.Lerp(m_Speeds[k_Steps - 1].angularSpeed - m_Speeds[0].angularSpeed, m_Speeds[k_Steps].angularSpeed - m_Speeds[1].angularSpeed, edgeBlend);
+            //AccelerationStrength = (2*accDistance - combinedSample.distance) / (2.0f * k_Period * k_Period);
+            //Acceleration = AccelerationStrength * Direction;
 
-            AccelerationMagnitude = speedDelta / k_Period;
-            Acceleration = AccelerationMagnitude * Direction;
+            //AngularAccelerationStrength = (2*angDistance - combinedSample.angle) / (2.0f * k_Period * k_Period);
+            //AngularAcceleration = AngularAxis * AngularAccelerationStrength * Mathf.Deg2Rad;
 
-            AngularAccelerationMagnitude = angularSpeedDelta / k_Period;
-            AngularAcceleration = AngularAxis * AngularAccelerationMagnitude * Mathf.Deg2Rad;
+
+            // If the current sample is full, clear out the oldest sample and make that the new current sample
+            //m_Speeds[sampleIndex] = new SpeedSample { speed = Speed, angularSpeed = AngularSpeed };
+            if (m_Samples[m_CurrentSampleIndex].time < k_Period)
+            {
+                return;
+            }
+
+            // We record the last speed value out here as well, to use for acceleration sampling
+            //m_Samples[m_CurrentSampleIndex].speed = Speed;
+            //m_Samples[m_CurrentSampleIndex].angularSpeed = AngularSpeed;
+            m_CurrentSampleIndex = ((m_CurrentSampleIndex - 1) + k_SampleLength) % k_SampleLength;
+            m_Samples[m_CurrentSampleIndex] = new Sample();
         }
     }
 }
