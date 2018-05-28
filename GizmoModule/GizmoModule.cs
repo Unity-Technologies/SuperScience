@@ -18,6 +18,10 @@ namespace Unity.Labs.SuperScience
         [Tooltip("Default cube mesh used for drawing gizmo boxes and rays.")]
         Mesh m_CubeMesh;
 
+        [SerializeField]
+        [Tooltip("Default quad mesh used for drawing gizmo wedges.")]
+        Mesh m_QuadMesh;
+
         MaterialPropertyBlock m_GizmoProperties;
         
         public Material gizmoMaterial
@@ -25,8 +29,16 @@ namespace Unity.Labs.SuperScience
             get { return m_GizmoMaterial; }
         }
 
+        public Material gizmoCutoffMaterial
+        {
+            get { return m_GizmoCutoffMaterial; }
+        }
+
         [SerializeField]
         Material m_GizmoMaterial;
+
+        [SerializeField]
+        Material m_GizmoCutoffMaterial;
 
         void Awake()
         {
@@ -86,6 +98,23 @@ namespace Unity.Labs.SuperScience
 
             var cubeMatrix = Matrix4x4.TRS(position, rotation, scale);
             Graphics.DrawMesh(m_CubeMesh, cubeMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
+        }
+
+        /// <summary>
+        ///  Draws a wedge for a single frame in all camera views
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="rotation"></param>
+        /// <param name="radius"></param>
+        /// <param name="angle"></param>
+        /// <param name="color"></param>
+        public void DrawWedge(Vector3 position, Quaternion rotation, float radius, float angle, Color color)
+        {
+            m_GizmoProperties.SetColor("_Color", color);
+            m_GizmoProperties.SetFloat("_Edge", 1.0f -  (angle / 360.0f));
+
+            var wedgeMatrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
+            Graphics.DrawMesh(m_QuadMesh, wedgeMatrix, m_GizmoCutoffMaterial, 0, null, 0, m_GizmoProperties);
         }
     }
 }
