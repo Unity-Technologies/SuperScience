@@ -7,10 +7,15 @@ public class RunInEditHelper : EditorWindow
     GUIStyle m_ClickableLabel;
     Vector2 m_ScrollPosition;
 
+    static bool s_Updating;
+
     static readonly GUIContent k_RunSelection = new GUIContent("Run Selection", "Set runInEditMode to true on all" +
         " MonoBehaviour components attached to currently selected objects (excluding children, if not selected)");
     static readonly GUIContent k_StopSelection = new GUIContent("Stop Selection", "Set runInEditMode to false on all" +
         " MonoBehaviour components attached to currently selected objects (excluding children, if not selected)");
+
+    static readonly GUIContent k_RunPlayerLoop = new GUIContent("Run Player Loop", "Queue Player Loop Updates continuously");
+    static readonly GUIContent k_StopPlayerLoop = new GUIContent("Stop Player Loop", "Stop Queueing Player Loop Updates");
 
     static readonly List<MonoBehaviour> k_RunningBehaviors = new List<MonoBehaviour>();
 
@@ -27,6 +32,24 @@ public class RunInEditHelper : EditorWindow
 
     void OnGUI()
     {
+        using (new EditorGUI.DisabledScope(s_Updating))
+        {
+            if (GUILayout.Button(k_RunPlayerLoop))
+            {
+                s_Updating = true;
+                EditorApplication.update += EditorUpdate;
+            }
+        }
+
+        using (new EditorGUI.DisabledScope(!s_Updating))
+        {
+            if (GUILayout.Button(k_StopPlayerLoop))
+            {
+                s_Updating = false;
+                EditorApplication.update -= EditorUpdate;
+            }
+        }
+
         if (GUILayout.Button(k_RunSelection))
         {
             foreach (var gameObject in Selection.gameObjects)
@@ -74,5 +97,10 @@ public class RunInEditHelper : EditorWindow
                     EditorGUIUtility.PingObject(behavior.gameObject);
             }
         }
+    }
+
+    static void EditorUpdate()
+    {
+        EditorApplication.QueuePlayerLoopUpdate();
     }
 }
