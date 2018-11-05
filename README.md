@@ -51,3 +51,8 @@ The included 'TestScene' for PhysicsTracker shows the smooth physics data being 
 To use the PhysicsTracker in your own scripts, just create a new 'PhysicsTracker' in your script, and call the 'Update' method with the most recent position and rotation values of the object you wish to track.  The physics tracker then will calculate up to date values for Speed, Velocity, Acceleration, Direction, Angular Speed, and Angular Velocity.
 
 For smoothest visual results, use a fixed or smooth delta time with the PhysicsTracker update functions.  For single-frame use (gameplay-to-physics events), delta time is fine.
+
+## RunInEditHelper: Manage what is running in edit module
+The runInEditMode flag is a relatively new feature of MonoBehaviour which allows scripts to decide whether or not a given MonoBehaviour gets lifecycle callbacks (like Start and Update) in edit mode. This handy Editor Window allows users to modify the RunInEdit state of selected objects, and lists which objects are currently running in edit mode. The window is helpful when working on or debugging RunInEdit-based workflows to provide manual control and oversight while creating the systems which modify this flag. It is sometimes unclear whether an object had the flag set or unset, because it is not exposed in the inspector (regular or Debug).
+
+The reason why we manually set enabled to false when stopping behaviors is to ensure that they get their OnDisable call and can clean up any state modified in OnEnable. There is no other reason why this is necessary to disable runInEditMode, and in fact if the desired behavior is just to "pause" the behavior, and not trigger OnDisable/OnEnable, another button could be added to simply toggle the state or set it to false.
