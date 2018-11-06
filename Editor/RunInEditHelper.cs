@@ -93,7 +93,7 @@ public class RunInEditHelper : EditorWindow
             m_ScrollPosition = scrollScope.scrollPosition;
             foreach (var behavior in k_RunningBehaviors)
             {
-                if (GUILayout.Button(behavior.name, m_ClickableLabel))
+                if (GUILayout.Button(behavior.ToString(), m_ClickableLabel))
                     EditorGUIUtility.PingObject(behavior.gameObject);
             }
         }
