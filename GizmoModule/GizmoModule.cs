@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Unity.Labs.SuperScience
 {
@@ -118,4 +117,3 @@ namespace Unity.Labs.SuperScience
         }
     }
 }
-#endif
