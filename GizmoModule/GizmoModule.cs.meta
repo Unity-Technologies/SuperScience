@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: f67e9003e9c88ff40abe2e8589e3d7c3
+timeCreated: 1490311052
+licenseType: Pro
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - m_SphereMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  - m_CubeMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - m_QuadMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  - m_GizmoMaterial: {fileID: 2100000, guid: ffb9b026dfef0964a9034bfdb7f5abe7, type: 2}
+  - m_GizmoCutoffMaterial: {fileID: 2100000, guid: 8697952de1fd620479c57e282e4a16fb,
+      type: 2}
+  executionOrder: -16100
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
