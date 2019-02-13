@@ -15,6 +15,7 @@ class OrphanedAssets : EditorWindow
         public string header { get; set; }
         public Type type { get; set; }
         public bool foldout { get; set; }
+
         public HashSet<string> guids
         {
             get { return m_Guids; }
@@ -24,7 +25,7 @@ class OrphanedAssets : EditorWindow
     const int k_FrameTimeTicks = 50 * 10000; // 50ms in "ticks" which are 100ns
 
     static readonly string[] k_SearchFolders = { "Assets" };
-    static readonly string[] k_ExcludePaths = { "libs", "Resources" };
+    static readonly string[] k_ExcludePaths = { "ignored", "libs", "Resources"};
 
     readonly AssetGroup m_OrphanedShaders = new AssetGroup { header = "Orphaned Shaders", type = typeof(Shader) };
     readonly AssetGroup m_OrphanedMaterials = new AssetGroup { header = "Orphaned Materials", type = typeof(Material) };
@@ -57,12 +58,12 @@ class OrphanedAssets : EditorWindow
         m_AssetGroups.Add(m_OrphanedScenes);
         m_AssetGroups.Add(m_OrphanedGUISkins);
 
-        RunFindOrpahnedAssets();
+        RunFindOrphanedAssets();
 
 #if UNITY_2018_1_OR_NEWER
-        EditorApplication.projectChanged += RunFindOrpahnedAssets;
+        EditorApplication.projectChanged += RunFindOrphanedAssets;
 #else
-        EditorApplication.projectWindowChanged += RunFindOrpahnedAssets;
+        EditorApplication.projectWindowChanged += RunFindOrphanedAssets;
 #endif
 
         EditorApplication.update += UpdateEnumerator;
@@ -71,9 +72,9 @@ class OrphanedAssets : EditorWindow
     void OnDisable()
     {
 #if UNITY_2018_1_OR_NEWER
-        EditorApplication.projectChanged -= RunFindOrpahnedAssets;
+        EditorApplication.projectChanged -= RunFindOrphanedAssets;
 #else
-        EditorApplication.projectWindowChanged -= RunFindOrpahnedAssets;
+        EditorApplication.projectWindowChanged -= RunFindOrphanedAssets;
 #endif
         EditorApplication.update -= UpdateEnumerator;
     }
@@ -103,7 +104,7 @@ class OrphanedAssets : EditorWindow
         m_FrameTimer.Start();
     }
 
-    void RunFindOrpahnedAssets()
+    void RunFindOrphanedAssets()
     {
         m_Update = FindOrphanedAssets();
     }
@@ -239,14 +240,9 @@ class OrphanedAssets : EditorWindow
             if (dependency == assetPath)
                 continue;
 
-            OnReferenceFound(dependency);
+            var guid = AssetDatabase.AssetPathToGUID(dependency);
+            m_References.Add(guid);
         }
-    }
-
-    void OnReferenceFound(string assetPath)
-    {
-        var guid = AssetDatabase.AssetPathToGUID(assetPath);
-        m_References.Add(guid);
     }
 
     static bool ExcludePath(string assetPath)
@@ -279,7 +275,7 @@ class OrphanedAssets : EditorWindow
         }
 
         if (GUILayout.Button("Refresh"))
-            RunFindOrpahnedAssets();
+            RunFindOrphanedAssets();
 
         m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
 
@@ -299,19 +295,21 @@ class OrphanedAssets : EditorWindow
         foldout = EditorGUILayout.Foldout(foldout, string.Format("{0} - {1}", header, guids.Count), true);
         group.foldout = foldout;
 
-        if (foldout)
+        if (!foldout)
+            return;
+
+        using (new GUILayout.HorizontalScope())
         {
-            GUILayout.BeginHorizontal();
             GUILayout.Space(15);
-            GUILayout.BeginVertical();
-            var type = group.type;
-            foreach (var orphanedAsset in guids)
+            using (new GUILayout.VerticalScope())
             {
-                var asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphanedAsset), type);
-                EditorGUILayout.ObjectField(asset.name, asset, type, false);
+                var type = group.type;
+                foreach (var orphanedAsset in guids)
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphanedAsset), type);
+                    EditorGUILayout.ObjectField(asset.name, asset, type, false);
+                }
             }
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
         }
     }
 }

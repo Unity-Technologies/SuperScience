@@ -63,13 +63,15 @@ If you want to continuously update your running behaviors while in edit mode (as
 Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for otherr reasons.
 
 The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+
 ## Orphaned Assets: Automated project housekeeping
-The goal of the Orphaned Assets and Material Dependencies windows is to help you explore a large project and find assets which are no longer referenced by anything important. For example, if you have a bunch of scenes that aren't built anymore, delete them. Then you might see a bunch of prefabs and materials crop up. Delete those. Now you'll see some textures, more materials, maybe some shaders. Delete those, and now you've probably drastically reduced the import time of your project!
-It's fun to delete assets! As always, remember to use Version Control or have some sort of backup for all of the work you and your team has done.  Also remember, just because nothing references an asset, that doesn't mean it isn't useful for your project. Maybe you want to keep prefab templates or sample scenes for duplication later.
+The goal of the Orphaned Assets and Material Dependencies windows is to help you explore a large project and find assets which are no longer referenced by anything important. For example, if you have a bunch of scenes that aren't built anymore, delete them. Then you might see a bunch of prefabs and materials crop up. Delete those. Now you'll see more textures, more materials, maybe some shaders show up as not being referenced. Delete those, and now you've probably drastically reduced the import time of your project!
+It's fun to delete assets! As always, remember to use Version Control or have some sort of backup for all of the work you and your team has done.  Also remember, just because nothing references an asset, that doesn't mean it isn't useful for your project. Maybe you want to keep prefab templates or sample scenes for duplication later. 
 
 There are likely types of references that we missed, so feel free to play around with the code, add cleverer way of excluding parts of your project like plugins, and contribute them back to us. Think of this code as a starting point for a project-specific reporting tool.
-You are also meant to modify the code to narrow the search folder or exclusion folders. There are some hard-coded rules like excluding auto-generated materials within font assets, they may or may not be applicable to your project.
-The Material References tool was useful on a project where the number of materials got out of hand, but similar windows could be created for prefabs, scenes, or any other kind of single-asset-type-centric view.
+You are also meant to modify the code to narrow the search folder or exclusion folders. There are some hard-coded rules like excluding auto-generated materials within font assets; these rules may or may not be applicable to your project.
+
+The Material Dependencies tool was useful on a project where the number of materials got out of hand, but similar windows could be created for prefabs, scenes, or any other kind of single-asset-type-centric view.
 
 Known issues:
-Legacy Cubemaps do not properly reference their source texutres, and those will always show up as not-referenced. We suggest that you add folders with legacy cubemaps, or modify the script to exclude .cubemap files.
+Legacy Cubemaps do not properly reference their source texutres, and those will always show up as not-referenced. We suggest that you add folders with legacy cubemaps to `k_ExcludePaths`, or modify the script to exclude .cubemap files.
