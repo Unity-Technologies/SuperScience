@@ -1,29 +1,30 @@
-﻿using Unity.Labs.SuperScience;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SpatialTracking;
 using UnityEngine.XR;
 
-public class SampleGizmos : MonoBehaviour
+namespace Unity.Labs.SuperScience
 {
-    [SerializeField]
-    Transform m_OtherHand;
-
-    void Start()
+    public class SampleGizmos : MonoBehaviour
     {
-        if (XRDevice.isPresent)
+        [SerializeField] Transform m_OtherHand;
+
+        void Start()
         {
-            GetComponent<TrackedPoseDriver>().enabled = true;
-            m_OtherHand.GetComponent<TrackedPoseDriver>().enabled = true;
+            if (XRDevice.isPresent)
+            {
+                GetComponent<TrackedPoseDriver>().enabled = true;
+                m_OtherHand.GetComponent<TrackedPoseDriver>().enabled = true;
+            }
         }
-    }
 
-    void Update()
-    {
-        var position = transform.position;
-        var otherPosition = m_OtherHand.position;
-        GizmoModule.instance.DrawSphere(position, 0.05f, Color.red);
-        GizmoModule.instance.DrawSphere(otherPosition, 0.05f, Color.red);
-        var handToHand = otherPosition - position;
-        GizmoModule.instance.DrawRay(position, handToHand, Color.green, 1f, handToHand.magnitude);
+        void Update()
+        {
+            var position = transform.position;
+            var otherPosition = m_OtherHand.position;
+            GizmoModule.instance.DrawSphere(position, 0.05f, Color.red);
+            GizmoModule.instance.DrawSphere(otherPosition, 0.05f, Color.red);
+            var handToHand = otherPosition - position;
+            GizmoModule.instance.DrawRay(position, handToHand, Color.green, 1f, handToHand.magnitude);
+        }
     }
 }

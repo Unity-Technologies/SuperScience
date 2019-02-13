@@ -1,9 +1,12 @@
 ﻿using UnityEngine;
 
-public class Rotator : MonoBehaviour
+namespace Unity.Labs.SuperScience
 {
-    void Update()
+    public class Rotator : MonoBehaviour
     {
-        transform.Rotate(1, 1, 1);
+        void Update()
+        {
+            transform.Rotate(1, 1, 1);
+        }
     }
 }

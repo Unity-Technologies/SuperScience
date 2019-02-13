@@ -58,3 +58,8 @@ The runInEditMode flag is a relatively new feature of MonoBehaviour which allows
 The reason why we manually set enabled to false when stopping behaviors is to ensure that they get their OnDisable call and can clean up any state modified in OnEnable. There is no other reason why this is necessary to disable runInEditMode, and in fact if the desired behavior is just to "pause" the behavior, and not trigger OnDisable/OnEnable, another button could be added to simply toggle the state or set it to false.
 
 If you want to continuously update your running behaviors while in edit mode (as if in Play mode), click Start/Stop Player Loop. You can try this out in the sample scene. If you start the Cube/Rotator, you will notice that it only updates every other frame, and only while selected. If you click Run Player Loop, you should see the cube smoothly update, regardless of selection.
+
+## HiddenHierarchy: Find hidden scene objects
+Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for otherr reasons.
+
+The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
