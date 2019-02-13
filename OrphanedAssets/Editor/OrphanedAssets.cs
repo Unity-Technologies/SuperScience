@@ -58,13 +58,23 @@ class OrphanedAssets : EditorWindow
         m_AssetGroups.Add(m_OrphanedGUISkins);
 
         RunFindOrpahnedAssets();
+
+#if UNITY_2018_1_OR_NEWER
+        EditorApplication.projectChanged += RunFindOrpahnedAssets;
+#else
         EditorApplication.projectWindowChanged += RunFindOrpahnedAssets;
+#endif
+
         EditorApplication.update += UpdateEnumerator;
     }
 
     void OnDisable()
     {
+#if UNITY_2018_1_OR_NEWER
+        EditorApplication.projectChanged -= RunFindOrpahnedAssets;
+#else
         EditorApplication.projectWindowChanged -= RunFindOrpahnedAssets;
+#endif
         EditorApplication.update -= UpdateEnumerator;
     }
 

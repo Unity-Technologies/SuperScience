@@ -27,12 +27,20 @@ class MaterialDependencies : EditorWindow
     void OnEnable()
     {
         FindReferences();
+#if UNITY_2018_1_OR_NEWER
+        EditorApplication.projectChanged += FindReferences;
+#else
         EditorApplication.projectWindowChanged += FindReferences;
+#endif
     }
 
     void OnDisable()
     {
+#if UNITY_2018_1_OR_NEWER
+        EditorApplication.projectChanged -= FindReferences;
+#else
         EditorApplication.projectWindowChanged -= FindReferences;
+#endif
     }
 
     void FindReferences()
