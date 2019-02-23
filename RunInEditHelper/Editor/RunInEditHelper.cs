@@ -4,6 +4,35 @@ using UnityEngine;
 
 namespace Unity.Labs.SuperScience
 {
+    public static class MonoBehaviourExtensions
+    {
+        /// <summary>
+        /// Start this behaviour running in edit mode.
+        /// This sets runInEditMode to true, which, if the behaviour is enabled will call OnDisable and then OnEnable.
+        /// </summary>
+        public static void StartRunInEditMode(this MonoBehaviour behaviour)
+        {
+            behaviour.runInEditMode = true;
+        }
+
+        /// <summary>
+        /// Stop this behaviour running in edit mode.
+        /// If the behaviour is enabled, we first disable it so that OnDisable is called. Then we set runInEditmode to false.
+        /// Then, if the behaviour was enabled, we re-enable it.
+        /// </summary>
+        public static void StopRunInEditMode(this MonoBehaviour behaviour)
+        {
+            var wasEnabled = behaviour.enabled;
+            if (wasEnabled)
+                behaviour.enabled = false;
+
+            behaviour.runInEditMode = false;
+
+            if (wasEnabled)
+                behaviour.enabled = true;
+        }
+    }
+
     public class RunInEditHelper : EditorWindow
     {
         GUIStyle m_ClickableLabel;
@@ -58,7 +87,7 @@ namespace Unity.Labs.SuperScience
                 {
                     foreach (var behaviour in gameObject.GetComponents<MonoBehaviour>())
                     {
-                        behaviour.runInEditMode = true;
+                        behaviour.StartRunInEditMode();
                     }
                 }
             }
@@ -69,14 +98,7 @@ namespace Unity.Labs.SuperScience
                 {
                     foreach (var behaviour in gameObject.GetComponents<MonoBehaviour>())
                     {
-                        var wasEnabled = behaviour.enabled;
-                        if (wasEnabled)
-                            behaviour.enabled = false;
-
-                        behaviour.runInEditMode = false;
-
-                        if (wasEnabled)
-                            behaviour.enabled = true;
+                        behaviour.StopRunInEditMode();
                     }
                 }
             }
