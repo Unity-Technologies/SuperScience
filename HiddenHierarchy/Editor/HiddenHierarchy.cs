@@ -12,7 +12,7 @@ namespace Unity.Labs.SuperScience
 
         Vector2 m_ScrollPosition;
 
-        [MenuItem("Window/HiddenHierarchy")]
+        [MenuItem("Window/SuperScience/HiddenHierarchy")]
         static void OnMenuItem()
         {
             GetWindow<HiddenHierarchy>("HiddenHierarchy");
