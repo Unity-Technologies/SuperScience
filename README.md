@@ -63,3 +63,10 @@ If you want to continuously update your running behaviors while in edit mode (as
 Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for otherr reasons.
 
 The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+
+## MissingReferences: Track down references to missing assets
+The goal of the MissingReferences window is to identify assets in your project that may be missing their dependencies. It can identify two problematic situations:
+- A script on a prefab is missing
+- An object field on an asset is missing its reference
+
+Note that this window will load all of the assets in your project, synchronously, when it opens or when you hit Refresh. In large projects, this can crash Unity, so open this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.
