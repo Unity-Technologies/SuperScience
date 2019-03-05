@@ -50,7 +50,7 @@ namespace Unity.Labs.SuperScience
 
         static readonly List<MonoBehaviour> k_RunningBehaviors = new List<MonoBehaviour>();
 
-        [MenuItem("Window/RunInEditHelper")]
+        [MenuItem("Window/SuperScience/RunInEditHelper")]
         static void OnMenuItem()
         {
             GetWindow<RunInEditHelper>("RunInEditHelper");
