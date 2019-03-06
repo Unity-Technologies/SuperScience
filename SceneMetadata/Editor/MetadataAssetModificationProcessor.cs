@@ -29,6 +29,8 @@ namespace Unity.Labs.SuperScience
             if (!saveMetadata)
                 return paths;
 
+            // To make sure the metadata storage Asset gets saved, we need to both dirty the Asset and
+            // include its path in the string array returned from OnWillSaveAssets.
             EditorUtility.SetDirty(metadataStorage);
             var pathsToSave = new string[paths.Length + 1];
             paths.CopyTo(pathsToSave, 0);
