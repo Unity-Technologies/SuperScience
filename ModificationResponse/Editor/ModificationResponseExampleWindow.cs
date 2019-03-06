@@ -6,6 +6,11 @@ namespace Unity.Labs.SuperScience
     public class ModificationResponseExampleWindow : EditorWindow
     {
         const double k_TimeToResponse = 0.3;
+        const float k_ColorRectPadding = 4f;
+        const string k_HelpMessage = "This window shows the average color from all ColorContributors in the Scene. " +
+            "It is updated on a delayed response to property modifications to ColorContributors. " +
+            "We use averaging colors here for the sake of simplicity - in practice this delayed response pattern " +
+            "is most useful for operations with a lot of overhead.";
 
         double m_TimeOfLastChange = -1;
         Color m_AverageColor;
@@ -32,7 +37,12 @@ namespace Unity.Labs.SuperScience
 
         void OnGUI()
         {
-            EditorGUI.DrawRect(new Rect(Vector2.zero, position.size), m_AverageColor);
+            EditorGUILayout.HelpBox(k_HelpMessage, MessageType.Info);
+
+            var lastRect = GUILayoutUtility.GetLastRect();
+            var colorRectY = lastRect.yMax + k_ColorRectPadding;
+            var colorRect = new Rect(0, colorRectY, position.width, position.height - colorRectY);
+            EditorGUI.DrawRect(colorRect, m_AverageColor);
         }
 
         void Update()
@@ -60,7 +70,11 @@ namespace Unity.Labs.SuperScience
 
         void OnUndoRedoPerformed()
         {
-            if (Selection.activeGameObject.GetComponent<ColorContributor>())
+            // When undoing/redoing a modification made through the Inspector, the modified object will be the active selection.
+            // This is not guaranteed to handle all cases though, since it is possible for a modification to happen from
+            // some arbitrary user code, for example through SerializedProperty.
+            var selectedGameObject = Selection.activeGameObject;
+            if (selectedGameObject != null && selectedGameObject.GetComponent<ColorContributor>())
                 m_TimeOfLastChange = EditorApplication.timeSinceStartup;
         }
 

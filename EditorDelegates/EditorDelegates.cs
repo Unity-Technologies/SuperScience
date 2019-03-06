@@ -2,6 +2,9 @@
 
 namespace Unity.Labs.SuperScience
 {
+    /// <summary>
+    /// This class contains functionality provided by code in the Editor assembly
+    /// </summary>
     public static class EditorDelegates
     {
         public static Func<bool> IsMouseOverExampleWindow { get; set; }
