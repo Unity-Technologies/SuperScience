@@ -67,8 +67,8 @@ The HiddenHierarchy window shows a Hierarchy-like view of the currently open sce
 ## ModificationResponse
 This is an example of how to hook into Undo.postprocessModifications and Undo.undoRedoPerformed to respond to property modifications in a Scene.  It uses a short timer that is reset and started when a change is detected, and it only triggers the response when the timer finishes.  This pattern is useful when you have a complex response that you don't want to happen constantly as a continuous property is changed (for example, as a user drags a slider in the Inspector).
 
-## SceneMetadata
-This is an example of how to save and update per-Scene metadata that is all stored in a single ScriptableObject Asset.  It uses callbacks in AssetModificationProcessor to keep metadata in-sync with Scenes.
+## AssetsInSync
+This is an example of how to use the OnWillSaveAssets callback in AssetModificationProcessor to keep two Assets in sync.
 
 ## EditorDelegates
 It is sometimes necessary to reference Editor code in your runtime assembly.  For example, a MonoBehaviour may exist only for the purpose of edit-time functionality, but it must live in a runtime assembly due to the rule against MonoBehaviours in Editor assemblies.  In this case, it is often useful to define some static delegate fields inside of an '#if UNTY_EDITOR' directive.  An Editor class can assign its own methods to those delegates, providing access to itself in the runtime assembly.
