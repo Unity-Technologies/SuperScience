@@ -8,8 +8,14 @@ namespace Unity.Labs.SuperScience
             "firing callbacks that exist in a runtime assembly. The MonoBehaviour EditorDelegatesUser is able to respond " +
             "to interaction with this window by hooking into delegates assigned by this window.";
 
-        [MenuItem("Window/SuperScience/Editor Delegates Example")]
+        [InitializeOnLoadMethod]
         static void Init()
+        {
+            EditorDelegates.ShowExampleWindow = ShowWindow;
+        }
+
+        [MenuItem("Window/SuperScience/Editor Delegates Example")]
+        static void ShowWindow()
         {
             var window = GetWindow<EditorDelegatesExampleWindow>("Editor Delegates Example");
             window.Show();

@@ -7,6 +7,7 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     public static class EditorDelegates
     {
+        public static Action ShowExampleWindow { get; set; }
         public static Func<bool> IsMouseOverExampleWindow { get; set; }
 
         public static event Action onExampleWindowFocus;

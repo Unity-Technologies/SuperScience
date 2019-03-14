@@ -20,9 +20,9 @@ namespace Unity.Labs.SuperScience
 #if UNITY_EDITOR
             EditorDelegates.onExampleWindowFocus += ShowFocusedText;
             EditorDelegates.onExampleWindowLostFocus += ShowUnfocusedText;
+            if (EditorDelegates.ShowExampleWindow != null)
+                EditorDelegates.ShowExampleWindow();
 #endif
-
-            ShowUnfocusedText();
         }
 
         void OnDestroy()
