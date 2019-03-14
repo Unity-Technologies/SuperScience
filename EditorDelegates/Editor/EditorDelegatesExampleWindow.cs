@@ -4,7 +4,7 @@ namespace Unity.Labs.SuperScience
 {
     public class EditorDelegatesExampleWindow : EditorWindow
     {
-        [MenuItem("Window/Editor Delegates Example")]
+        [MenuItem("Window/SuperScience/Editor Delegates Example")]
         static void Init()
         {
             var window = GetWindow<EditorDelegatesExampleWindow>("Editor Delegates Example");

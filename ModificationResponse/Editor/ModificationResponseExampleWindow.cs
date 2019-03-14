@@ -15,7 +15,7 @@ namespace Unity.Labs.SuperScience
         double m_TimeOfLastChange = -1;
         Color m_AverageColor;
 
-        [MenuItem("Window/Modification Response Example")]
+        [MenuItem("Window/SuperScience/Modification Response Example")]
         static void Init()
         {
             var window = GetWindow<ModificationResponseExampleWindow>("Modification Response Example");
