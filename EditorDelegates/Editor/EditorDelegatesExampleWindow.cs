@@ -4,6 +4,10 @@ namespace Unity.Labs.SuperScience
 {
     public class EditorDelegatesExampleWindow : EditorWindow
     {
+        const string k_HelpMessage = "This window shows an example of an Editor assembly class assigning delegates and " +
+            "firing callbacks that exist in a runtime assembly. The MonoBehaviour EditorDelegatesUser is able to respond " +
+            "to interaction with this window by hooking into delegates assigned by this window.";
+
         [MenuItem("Window/SuperScience/Editor Delegates Example")]
         static void Init()
         {
@@ -19,6 +23,11 @@ namespace Unity.Labs.SuperScience
         void OnDisable()
         {
             EditorDelegates.IsMouseOverExampleWindow = null;
+        }
+
+        void OnGUI()
+        {
+            EditorGUILayout.HelpBox(k_HelpMessage, MessageType.Info);
         }
 
         void OnFocus()
