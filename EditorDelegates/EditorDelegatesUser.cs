@@ -3,6 +3,10 @@ using UnityEngine.UI;
 
 namespace Unity.Labs.SuperScience
 {
+    /// <summary>
+    /// This is an example of a runtime class that uses functionality from the Editor assembly.
+    /// It drives UI text based on states of the Editor Delegates Example Window.
+    /// </summary>
     public class EditorDelegatesUser : MonoBehaviour
     {
         [SerializeField]

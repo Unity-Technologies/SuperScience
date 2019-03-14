@@ -3,7 +3,7 @@
 namespace Unity.Labs.SuperScience
 {
     /// <summary>
-    /// This class contains functionality provided by code in the Editor assembly
+    /// This class is used for routing functionality from the Editor assembly to the runtime assembly
     /// </summary>
     public static class EditorDelegates
     {
