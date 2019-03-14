@@ -1,5 +1,7 @@
 ﻿using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Unity.Labs.SuperScience
 {
@@ -25,12 +27,14 @@ namespace Unity.Labs.SuperScience
         void OnEnable()
         {
             UpdateAverageColor();
+            EditorSceneManager.sceneOpened += OnSceneOpened;
             Undo.postprocessModifications += OnPostprocessModifications;
             Undo.undoRedoPerformed += OnUndoRedoPerformed;
         }
 
         void OnDisable()
         {
+            EditorSceneManager.sceneOpened -= OnSceneOpened;
             Undo.postprocessModifications -= OnPostprocessModifications;
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
         }
@@ -76,6 +80,11 @@ namespace Unity.Labs.SuperScience
             var selectedGameObject = Selection.activeGameObject;
             if (selectedGameObject != null && selectedGameObject.GetComponent<ColorContributor>())
                 m_TimeOfLastChange = EditorApplication.timeSinceStartup;
+        }
+
+        void OnSceneOpened(Scene scene, OpenSceneMode mode)
+        {
+            UpdateAverageColor();
         }
 
         void UpdateAverageColor()
