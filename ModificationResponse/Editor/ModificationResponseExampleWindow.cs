@@ -90,13 +90,18 @@ namespace Unity.Labs.SuperScience
         void UpdateAverageColor()
         {
             m_AverageColor = Color.clear;
+
             var colorContributors = FindObjectsOfType<ColorContributor>();
-            foreach (var colorContributor in colorContributors)
+            if (colorContributors.Length > 0)
             {
-                m_AverageColor += colorContributor.color;
+                foreach (var colorContributor in colorContributors)
+                {
+                    m_AverageColor += colorContributor.color;
+                }
+
+                m_AverageColor /= colorContributors.Length;
             }
 
-            m_AverageColor /= colorContributors.Length;
             Repaint();
         }
     }
