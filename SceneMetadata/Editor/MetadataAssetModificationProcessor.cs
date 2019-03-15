@@ -6,6 +6,9 @@ using UnityEngine.SceneManagement;
 
 namespace Unity.Labs.SuperScience
 {
+    /// <summary>
+    /// Hooks into saving of Assets to update and save metadata along with Scenes
+    /// </summary>
     class MetadataAssetModificationProcessor : UnityEditor.AssetModificationProcessor
     {
         const string k_MetadataExampleLabel = "MetadataExample";

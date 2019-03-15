@@ -4,6 +4,10 @@ using UnityEngine.SceneManagement;
 
 namespace Unity.Labs.SuperScience
 {
+    /// <summary>
+    /// A ScriptableObject containing simple metadata about a Scene.
+    /// MetadataAssetModificationProcessor ensures that this metadata is created and updated along with the Scene.
+    /// </summary>
     public class ExampleSceneMetadata : ScriptableObject
     {
         [SerializeField]
