@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if UNITY_EDITOR
+using System;
 
 namespace Unity.Labs.SuperScience
 {
@@ -26,3 +27,4 @@ namespace Unity.Labs.SuperScience
         }
     }
 }
+#endif
