@@ -15,6 +15,7 @@ namespace Unity.Labs.SuperScience
         const float k_AngleStabilization = 4.0f;
         const float k_90FPS = 1.0f/90.0f;
 
+#pragma warning disable 649
         [SerializeField]
         [Tooltip("The transform to match position and orientation - ie. a tracke controller")]
         Transform m_FollowSource;
@@ -30,6 +31,7 @@ namespace Unity.Labs.SuperScience
         [SerializeField]
         [Tooltip("When enabled, the object's endpoint will be considered for stabilization")]
         bool m_UseEndPoint = true;
+#pragma warning restore 649
 
         void LateUpdate ()
         {

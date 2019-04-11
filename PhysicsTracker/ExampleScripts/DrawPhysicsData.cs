@@ -26,7 +26,7 @@ namespace Unity.Labs.SuperScience.Example
         static readonly Color k_AngularVelocityColor = Color.white;
         static readonly Color k_DirectIntegrationColor = Color.red;
 
-
+#pragma warning disable 649
         [SerializeField]
         [Tooltip("The object to track in space and report physics data on.")]
         Transform m_ToTrack;
@@ -50,21 +50,22 @@ namespace Unity.Labs.SuperScience.Example
         [SerializeField]
         [Tooltip("Should we use the PhysicsTracker's reported direction for physics data, or just report magnitudes?")]
         bool m_UseDirection = true;
+#pragma warning restore 649
 
         // We have a physicsTracker for getting the smooth data, and hold the last position for doing direct integration
         PhysicsTracker m_MotionData = new PhysicsTracker();
         Vector3 m_LastPosition;
 
-	    void Start ()
+        void Start ()
         {
             m_MotionData.Reset(m_ToTrack.position, m_ToTrack.rotation, Vector3.zero, Vector3.zero);
             m_LastPosition = m_ToTrack.position;
-	    }
-	
-	    /// <summary>
+        }
+
+        /// <summary>
         /// Sends updated data to the physicsTracker, and then draws the calculated data
         /// </summary>
-	    void Update ()
+        void Update ()
         {
             m_MotionData.Update(m_ToTrack.position, m_ToTrack.rotation, Time.smoothDeltaTime);
             if (m_DrawSmoothSpeed)
@@ -131,6 +132,6 @@ namespace Unity.Labs.SuperScience.Example
             // Store the last position so we can integrate it again next frame
             m_LastPosition = m_ToTrack.position;
 
-	    }
+        }
     }
 }

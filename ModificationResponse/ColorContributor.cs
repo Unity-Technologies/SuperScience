@@ -9,8 +9,10 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     public class ColorContributor : MonoBehaviour
     {
+#pragma warning disable 649
         [SerializeField]
         Color m_Color;
+#pragma warning restore 649
 
         public Color color { get { return m_Color; } }
     }
