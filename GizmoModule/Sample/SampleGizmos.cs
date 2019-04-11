@@ -5,8 +5,10 @@ using UnityEngine.XR;
 
 public class SampleGizmos : MonoBehaviour
 {
+#pragma warning disable 649
     [SerializeField]
     Transform m_OtherHand;
+#pragma warning restore 649
 
     void Start()
     {
