@@ -64,6 +64,17 @@ Sometimes it is necessary for Unity systems to add hidden objects to the user's 
 
 The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
 
+## ModificationResponse
+This is an example of how to hook into Undo.postprocessModifications and Undo.undoRedoPerformed to respond to property modifications in a Scene.  It uses a short timer that is reset and started when a change is detected, and it only triggers the response when the timer finishes.  This pattern is useful when you have a complex response that you don't want to happen constantly as a continuous property is changed (for example, as a user drags a slider in the Inspector).
+
+## SceneMetadata
+One way to store metadata for a Scene is by keeping it in a ScriptableObject Asset, in which case you need to make sure the Asset is kept in sync with the Scene. This example shows how to use the OnWillSaveAssets callback in AssetModificationProcessor to ensure that a metadata Asset gets saved with the Scene.
+
+## EditorDelegates
+It is sometimes necessary to reference Editor code in your runtime assembly.  For example, a MonoBehaviour may exist only for the purpose of edit-time functionality, but it must live in a runtime assembly due to the rule against MonoBehaviours in Editor assemblies.  In this case, it is often useful to define some static delegate fields inside of an '#if UNTY_EDITOR' directive.  An Editor class can assign its own methods to those delegates, providing access to itself in the runtime assembly.
+
+EditorDelegatesExampleWindow provides functionality to EditorDelegates for checking if the mouse is over the window and firing callbacks when the window is focused and unfocused. The MonoBehaviour EditorDelegatesUser is then able to use this functionality even though it is in the runtime assembly.
+
 ## Orphaned Assets: Automated project housekeeping
 The goal of the Orphaned Assets and Material Dependencies windows is to help you explore a large project and find assets which are no longer referenced by anything important. For example, if you have a bunch of scenes that aren't built anymore, delete them. Then you might see a bunch of prefabs and materials crop up. Delete those. Now you'll see more textures, more materials, maybe some shaders show up as not being referenced. Delete those, and now you've probably drastically reduced the import time of your project!
 It's fun to delete assets! As always, remember to use Version Control or have some sort of backup for all of the work you and your team has done.  Also remember, just because nothing references an asset, that doesn't mean it isn't useful for your project. Maybe you want to keep prefab templates or sample scenes for duplication later. 
