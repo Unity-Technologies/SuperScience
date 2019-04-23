@@ -6,7 +6,10 @@ namespace Unity.Labs.SuperScience
 {
     public class SampleGizmos : MonoBehaviour
     {
-        [SerializeField] Transform m_OtherHand;
+#pragma warning disable 649
+        [SerializeField]
+        Transform m_OtherHand;
+#pragma warning restore 649
 
         void Start()
         {

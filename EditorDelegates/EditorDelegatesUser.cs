@@ -9,11 +9,13 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     public class EditorDelegatesUser : MonoBehaviour
     {
+#pragma warning disable 649
         [SerializeField]
         Text m_MouseOverText;
 
         [SerializeField]
         Text m_FocusedText;
+#pragma warning restore 649
 
         void Awake()
         {

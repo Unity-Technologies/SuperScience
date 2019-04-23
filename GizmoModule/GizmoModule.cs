@@ -9,6 +9,7 @@ namespace Unity.Labs.SuperScience
         public const float RayLength = 100f;
         const float k_RayWidth = 0.001f;
 
+#pragma warning disable 649
         [SerializeField]
         [Tooltip("Default sphere mesh used for drawing gizmo spheres.")]
         Mesh m_SphereMesh;
@@ -21,8 +22,15 @@ namespace Unity.Labs.SuperScience
         [Tooltip("Default quad mesh used for drawing gizmo wedges.")]
         Mesh m_QuadMesh;
 
+        [SerializeField]
+        Material m_GizmoMaterial;
+
+        [SerializeField]
+        Material m_GizmoCutoffMaterial;
+#pragma warning restore 649
+
         MaterialPropertyBlock m_GizmoProperties;
-        
+
         public Material gizmoMaterial
         {
             get { return m_GizmoMaterial; }
@@ -32,12 +40,6 @@ namespace Unity.Labs.SuperScience
         {
             get { return m_GizmoCutoffMaterial; }
         }
-
-        [SerializeField]
-        Material m_GizmoMaterial;
-
-        [SerializeField]
-        Material m_GizmoCutoffMaterial;
 
         void Awake()
         {
