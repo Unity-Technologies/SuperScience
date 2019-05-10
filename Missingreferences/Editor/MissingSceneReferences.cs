@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
-using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
 {
-    public class MissingReferences : EditorWindow
+    public class MissingSceneReferences : EditorWindow
     {
         const float k_Indent = 15f;
         Vector2 m_ScrollPosition;
@@ -15,42 +15,41 @@ namespace Unity.Labs.SuperScience
         bool m_ShowPrefabs;
         bool m_ShowAssets;
 
-        readonly List<GameObject> m_Prefabs = new List<GameObject>();
-        readonly List<UnityObject> m_OtherAssets = new List<UnityObject>();
+        readonly List<GameObject> m_GameObjects = new List<GameObject>();
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects =
             new Dictionary<UnityObject, SerializedObject>();
 
-        [MenuItem("Window/SuperScience/MissingReferences")]
-        static void OnMenuItem()
-        {
-            GetWindow<MissingReferences>("MissingReferences");
-        }
+        [MenuItem("Window/SuperScience/Missing Scene References")]
+        static void OnMenuItem() { GetWindow<MissingSceneReferences>("MissingSceneReferences"); }
 
         void OnEnable()
         {
-            m_MissingScriptStyle = new GUIStyle {richText = true};
+            m_MissingScriptStyle = new GUIStyle { richText = true };
 
             ScanProject();
         }
 
         void ScanProject()
         {
-            m_Prefabs.Clear();
-            foreach (var path in AssetDatabase.GetAllAssetPaths())
+            var activeScene = SceneManager.GetActiveScene();
+            if (!activeScene.IsValid())
+                return;
+
+            m_GameObjects.Clear();
+            foreach (var gameObject in activeScene.GetRootGameObjects())
             {
-                if (Path.IsPathRooted(path))
-                    continue;
+                ScanGameObject(gameObject);
+            }
+        }
 
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                if (prefab != null && CheckForMissingRefs(prefab))
-                {
-                    m_Prefabs.Add(prefab);
-                    continue;
-                }
+        void ScanGameObject(GameObject gameObject)
+        {
+            if (CheckForMissingRefs(gameObject))
+                m_GameObjects.Add(gameObject);
 
-                var asset = AssetDatabase.LoadAssetAtPath<UnityObject>(path);
-                if (asset != null && CheckForMissingRefs(asset))
-                    m_OtherAssets.Add(asset);
+            foreach (Transform child in gameObject.transform)
+            {
+                ScanGameObject(child.gameObject);
             }
         }
 
@@ -63,37 +62,18 @@ namespace Unity.Labs.SuperScience
             {
                 m_ScrollPosition = scrollView.scrollPosition;
 
-                m_ShowPrefabs = EditorGUILayout.Foldout(m_ShowPrefabs, "Prefabs");
+                m_ShowPrefabs = EditorGUILayout.Foldout(m_ShowPrefabs, "GameObjects");
                 if (m_ShowPrefabs)
                 {
-                    foreach (var prefab in m_Prefabs)
+                    foreach (var gameObject in m_GameObjects)
                     {
-                        EditorGUILayout.ObjectField(prefab, typeof(GameObject), false);
+                        EditorGUILayout.ObjectField(gameObject, typeof(GameObject), false);
                         using (new EditorGUILayout.HorizontalScope())
                         {
                             GUILayout.Space(k_Indent);
                             using (new EditorGUILayout.VerticalScope())
                             {
-                                DrawObject(prefab);
-                            }
-                        }
-
-                        EditorGUILayout.Separator();
-                    }
-                }
-
-                m_ShowAssets = EditorGUILayout.Foldout(m_ShowAssets, "Assets");
-                if (m_ShowAssets)
-                {
-                    foreach (var asset in m_OtherAssets)
-                    {
-                        EditorGUILayout.ObjectField(asset, typeof(GameObject), false);
-                        using (new EditorGUILayout.HorizontalScope())
-                        {
-                            GUILayout.Space(k_Indent);
-                            using (new EditorGUILayout.VerticalScope())
-                            {
-                                DrawObject(asset);
+                                DrawObject(gameObject);
                             }
                         }
 
@@ -108,12 +88,6 @@ namespace Unity.Labs.SuperScience
             foreach (var component in obj.GetComponents<Component>())
             {
                 if (CheckForMissingRefs(component))
-                    return true;
-            }
-
-            foreach (Transform child in obj.transform)
-            {
-                if (CheckForMissingRefs(child.gameObject))
                     return true;
             }
 
@@ -152,27 +126,12 @@ namespace Unity.Labs.SuperScience
 
         void DrawObject(GameObject gameObject)
         {
+            if (!gameObject)
+                return;
+
             foreach (var component in gameObject.GetComponents<Component>())
             {
                 DrawComponent(gameObject, component);
-            }
-
-            foreach (Transform child in gameObject.transform)
-            {
-                DrawObject(child.gameObject);
-            }
-        }
-
-        void DrawObject(UnityObject obj)
-        {
-            var so = GetSerializedObjectForUnityObject(obj);
-
-            var property = so.GetIterator();
-            while (property.NextVisible(true))
-            {
-                if (property.propertyType == SerializedPropertyType.ObjectReference &&
-                    property.objectReferenceValue == null && property.objectReferenceInstanceIDValue != 0)
-                    EditorGUILayout.PropertyField(property);
             }
         }
 
@@ -205,12 +164,12 @@ namespace Unity.Labs.SuperScience
             DrawComponentContext(gameObject, component);
         }
 
-        void DrawComponentContext(GameObject gameObject, Component component)
+        static void DrawComponentContext(GameObject gameObject, Component component)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.TextField(GetTransformPath(gameObject.transform));
-                EditorGUILayout.ObjectField(component, typeof(Component), false, GUILayout.Width(150));
+                EditorGUILayout.ObjectField(component, typeof(Component), false, GUILayout.Width(200));
             }
         }
 
