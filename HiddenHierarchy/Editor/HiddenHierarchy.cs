@@ -8,6 +8,7 @@ namespace Unity.Labs.SuperScience
     public class HiddenHierarchy : EditorWindow
     {
         const float k_Indent = 15f;
+        const float k_FoldoutArrowSize = 12f;
         static readonly Dictionary<GameObject, bool> k_FoldoutStates = new Dictionary<GameObject, bool>();
 
         Vector2 m_ScrollPosition;
@@ -16,6 +17,16 @@ namespace Unity.Labs.SuperScience
         static void OnMenuItem()
         {
             GetWindow<HiddenHierarchy>("HiddenHierarchy");
+        }
+
+        void OnEnable()
+        {
+            Selection.selectionChanged += Repaint;
+        }
+
+        void OnDisable()
+        {
+            Selection.selectionChanged -= Repaint;
         }
 
         void OnGUI()
@@ -41,7 +52,7 @@ namespace Unity.Labs.SuperScience
             }
         }
 
-        void DrawObject(GameObject go, float indent)
+        static void DrawObject(GameObject go, float indent)
         {
             var transform = go.transform;
 
@@ -54,12 +65,15 @@ namespace Unity.Labs.SuperScience
                     k_FoldoutStates.TryGetValue(go, out foldout);
                     foldout = EditorGUILayout.Foldout(foldout, go.name);
                     k_FoldoutStates[go] = foldout;
+
+                    if (GUILayout.Button("Select", GUILayout.Width(50)))
+                        Selection.activeObject = go;
                 }
                 else
                 {
-                    const float foldoutArrowSize = 12f;
-                    GUILayout.Space(foldoutArrowSize);
-                    GUILayout.Label(go.name);
+                    GUILayout.Space(k_FoldoutArrowSize);
+                    if (GUILayout.Button(go.name, GUIStyle.none))
+                        Selection.activeObject = go;
                 }
             }
 
