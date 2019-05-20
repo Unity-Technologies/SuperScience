@@ -1,0 +1,16 @@
+{
+    "name": "Unity.Labs.SuperScience.Editor",
+    "references": [
+        "Unity.Labs.SuperScience"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": []
+}
