@@ -80,4 +80,4 @@ The goal of the MissingReferences window is to identify assets in your project t
 - A script on a prefab is missing
 - An object field on an asset is missing its reference
 
-Note that this window will load all of the assets in your project, synchronously, when it opens or when you hit Refresh. In large projects, this can crash Unity, so open this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.
+Note that this window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.

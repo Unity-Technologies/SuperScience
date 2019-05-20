@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -12,6 +13,17 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     sealed class MissingProjectReferences : MissingReferencesWindow
     {
+        const string k_Instructions = "Click the Refresh button to scan your project for missing references. WARNING: " +
+            "This will load every asset in your project. For large projects, this may take a long time and/or crash the Editor.";
+
+        const string k_NoMissingReferences = "No missing references in project";
+        const string k_NoMissingPrefabReferences = "No missing references in prefabs";
+        const string k_NoMissingAssetReferences = "No missing references in asssets";
+
+        // Bool fields will be serialized to maintain state between domain reloads, but our list of GameObjects will not
+        [NonSerialized]
+        bool m_Scanned;
+
         Vector2 m_ScrollPosition;
         bool m_ShowPrefabs;
         bool m_ShowAssets;
@@ -26,6 +38,7 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         protected override void Scan()
         {
+            m_Scanned = true;
             m_Prefabs.Clear();
             foreach (var path in AssetDatabase.GetAllAssetPaths())
             {
@@ -49,37 +62,67 @@ namespace Unity.Labs.SuperScience
         {
             base.OnGUI();
 
+            if (!m_Scanned)
+            {
+                EditorGUILayout.HelpBox(k_Instructions, MessageType.Info);
+                GUIUtility.ExitGUI();
+            }
+
+            var prefabsCount = m_Prefabs.Count;
+            var assetsCount = m_Assets.Count;
+            var noPrefabs = prefabsCount == 0;
+            var noAssets = assetsCount == 0;
+            if (noPrefabs && noAssets)
+            {
+                GUILayout.Label(k_NoMissingReferences);
+                GUIUtility.ExitGUI();
+            }
+
             using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
             {
                 m_ScrollPosition = scrollView.scrollPosition;
 
-                m_ShowPrefabs = EditorGUILayout.Foldout(m_ShowPrefabs, "Prefabs");
-                if (m_ShowPrefabs)
+                if (noPrefabs)
                 {
-                    foreach (var prefab in m_Prefabs)
+                    GUILayout.Label(k_NoMissingPrefabReferences);
+                }
+                else
+                {
+                    m_ShowPrefabs = EditorGUILayout.Foldout(m_ShowPrefabs, string.Format("Prefabs: {0}", prefabsCount));
+                    if (m_ShowPrefabs)
                     {
-                        EditorGUILayout.ObjectField(prefab, typeof(GameObject), false);
-                        using (new EditorGUI.IndentLevelScope())
+                        foreach (var prefab in m_Prefabs)
                         {
-                            DrawObject(prefab);
-                        }
+                            EditorGUILayout.ObjectField(prefab, typeof(GameObject), false);
+                            using (new EditorGUI.IndentLevelScope())
+                            {
+                                DrawObject(prefab);
+                            }
 
-                        EditorGUILayout.Separator();
+                            EditorGUILayout.Separator();
+                        }
                     }
                 }
 
-                m_ShowAssets = EditorGUILayout.Foldout(m_ShowAssets, "Assets");
-                if (m_ShowAssets)
+                if (noAssets)
                 {
-                    foreach (var asset in m_Assets)
+                    GUILayout.Label(k_NoMissingAssetReferences);
+                }
+                else
+                {
+                    m_ShowAssets = EditorGUILayout.Foldout(m_ShowAssets, string.Format("Assets: {0}", assetsCount));
+                    if (m_ShowAssets)
                     {
-                        EditorGUILayout.ObjectField(asset, typeof(GameObject), false);
-                        using (new EditorGUI.IndentLevelScope())
+                        foreach (var asset in m_Assets)
                         {
-                            DrawObject(asset);
-                        }
+                            EditorGUILayout.ObjectField(asset, typeof(GameObject), false);
+                            using (new EditorGUI.IndentLevelScope())
+                            {
+                                DrawObject(asset);
+                            }
 
-                        EditorGUILayout.Separator();
+                            EditorGUILayout.Separator();
+                        }
                     }
                 }
             }

@@ -18,9 +18,6 @@ namespace Unity.Labs.SuperScience
         void OnEnable()
         {
             m_MissingScriptStyle = new GUIStyle { richText = true };
-
-            // Scan when we first open the window
-            Scan();
         }
 
         /// <summary>
