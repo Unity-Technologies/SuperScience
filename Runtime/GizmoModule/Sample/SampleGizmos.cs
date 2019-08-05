@@ -1,6 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.SpatialTracking;
-using UnityEngine.XR;
 
 namespace Unity.Labs.SuperScience
 {
@@ -10,15 +8,6 @@ namespace Unity.Labs.SuperScience
         [SerializeField]
         Transform m_OtherHand;
 #pragma warning restore 649
-
-        void Start()
-        {
-            if (XRDevice.isPresent)
-            {
-                GetComponent<TrackedPoseDriver>().enabled = true;
-                m_OtherHand.GetComponent<TrackedPoseDriver>().enabled = true;
-            }
-        }
 
         void Update()
         {
