@@ -4,7 +4,7 @@ using UnityEngine.XR;
 namespace Unity.Labs.SuperScience
 {
     /// <summary>
-    /// Helper class to map device position and rotation to the gameobject that holds this component
+    /// Helper class to map device position and rotation to the gameobject holding this component
     /// </summary>
     public class HandPose : MonoBehaviour
     {
