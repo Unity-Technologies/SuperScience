@@ -35,9 +35,6 @@ namespace Unity.Labs.SuperScience
 
     public class RunInEditHelper : EditorWindow
     {
-        GUIStyle m_ClickableLabel;
-        Vector2 m_ScrollPosition;
-
         static bool s_Updating;
 
         static readonly GUIContent k_RunSelection = new GUIContent("Run Selection", "Set runInEditMode to true on all" +
@@ -50,15 +47,14 @@ namespace Unity.Labs.SuperScience
 
         static readonly List<MonoBehaviour> k_RunningBehaviors = new List<MonoBehaviour>();
 
+        Vector2 m_ScrollPosition;
+
+        string m_SearchTerm;
+
         [MenuItem("Window/SuperScience/RunInEditHelper")]
         static void OnMenuItem()
         {
             GetWindow<RunInEditHelper>("RunInEditHelper");
-        }
-
-        void OnEnable()
-        {
-            m_ClickableLabel = new GUIStyle {margin = new RectOffset(5, 5, 5, 5)};
         }
 
         void OnGUI()
@@ -103,21 +99,32 @@ namespace Unity.Labs.SuperScience
                 }
             }
 
+            GUILayout.Label(string.Format("Objects currently running in edit mode: {0}", k_RunningBehaviors.Count));
+            m_SearchTerm = EditorGUILayout.TextField("Search", m_SearchTerm);
+
             k_RunningBehaviors.Clear();
-            var behaviors = FindObjectsOfType<MonoBehaviour>();
+            var behaviors = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
             foreach (var behavior in behaviors)
             {
                 if (behavior.runInEditMode)
-                    k_RunningBehaviors.Add(behavior);
-            }
+                {
+                    if (!string.IsNullOrEmpty(m_SearchTerm))
+                    {
+                        var lowerSearchTerm = m_SearchTerm.ToLower();
+                        var behaviorName = behavior.name.ToLower();
+                        if (!behaviorName.Contains(lowerSearchTerm))
+                            continue;
+                    }
 
-            GUILayout.Label(string.Format("Objects currently running in edit mode: {0}", k_RunningBehaviors.Count));
+                    k_RunningBehaviors.Add(behavior);
+                }
+            }
             using (var scrollScope = new EditorGUILayout.ScrollViewScope(m_ScrollPosition))
             {
                 m_ScrollPosition = scrollScope.scrollPosition;
                 foreach (var behavior in k_RunningBehaviors)
                 {
-                    if (GUILayout.Button(behavior.ToString(), m_ClickableLabel))
+                    if (GUILayout.Button(behavior.ToString(), EditorStyles.label))
                         EditorGUIUtility.PingObject(behavior.gameObject);
                 }
             }
