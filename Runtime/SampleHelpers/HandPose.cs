@@ -28,5 +28,6 @@ namespace Unity.Labs.SuperScience
                 transform.SetPositionAndRotation(position, rotation);
             }
         }
+#endif
     }
 }
