@@ -1,6 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.SpatialTracking;
-using UnityEngine.XR;
 
 namespace Unity.Labs.SuperScience
 {
@@ -8,22 +6,14 @@ namespace Unity.Labs.SuperScience
     {
 #pragma warning disable 649
         [SerializeField]
-        Transform m_OtherHand;
+        Transform m_RightHand;
 #pragma warning restore 649
-
-        void Start()
-        {
-            if (XRDevice.isPresent)
-            {
-                GetComponent<TrackedPoseDriver>().enabled = true;
-                m_OtherHand.GetComponent<TrackedPoseDriver>().enabled = true;
-            }
-        }
 
         void Update()
         {
             var position = transform.position;
-            var otherPosition = m_OtherHand.position;
+            var otherPosition = m_RightHand != null ? m_RightHand.position : Vector3.zero;
+
             GizmoModule.instance.DrawSphere(position, 0.05f, Color.red);
             GizmoModule.instance.DrawSphere(otherPosition, 0.05f, Color.red);
             var handToHand = otherPosition - position;
