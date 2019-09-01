@@ -17,7 +17,7 @@ namespace Unity.Labs.SuperScience
 
 #pragma warning disable 649
         [SerializeField]
-        [Tooltip("The transform to match position and orientation - ie. a tracke controller")]
+        [Tooltip("The transform to match position and orientation - ie. a tracked controller")]
         Transform m_FollowSource;
 
         [SerializeField]
