@@ -8,6 +8,7 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     public class HandPose : MonoBehaviour
     {
+#if UNITY_2019_1_OR_NEWER
         [SerializeField]
         bool m_LeftHand = true;
 
@@ -27,5 +28,6 @@ namespace Unity.Labs.SuperScience
                 transform.SetPositionAndRotation(position, rotation);
             }
         }
+#endif
     }
 }
