@@ -59,7 +59,11 @@ namespace Unity.Labs.SuperScience
 
         void OnEnable()
         {
-            m_ClickableLabel = new GUIStyle {margin = new RectOffset(5, 5, 5, 5)};
+            m_ClickableLabel = new GUIStyle
+            {
+                margin = new RectOffset(5, 5, 5, 5),
+                normal = new GUIStyleState { textColor = EditorStyles.label.normal.textColor }
+            };
         }
 
         void OnGUI()
