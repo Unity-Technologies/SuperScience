@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEditor;
+using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -32,12 +33,24 @@ namespace Unity.Labs.SuperScience
         {
             base.Scan();
             m_Scanned = true;
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage != null)
+            {
+                ScanScene(prefabStage.scene);
+                return;
+            }
+
             var activeScene = SceneManager.GetActiveScene();
             if (!activeScene.IsValid())
                 return;
 
+            ScanScene(activeScene);
+        }
+
+        void ScanScene(Scene scene)
+        {
             m_ParentGameObjectContainer.Clear();
-            foreach (var gameObject in activeScene.GetRootGameObjects())
+            foreach (var gameObject in scene.GetRootGameObjects())
             {
                 m_ParentGameObjectContainer.Add(this, gameObject);
             }
