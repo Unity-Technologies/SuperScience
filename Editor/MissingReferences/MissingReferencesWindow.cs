@@ -45,7 +45,7 @@ namespace Unity.Labs.SuperScience
 
                 if (obj.GetType() != GetType())
                     return false;
-                
+
                 return Equals((PropertyKey)obj);
             }
 
@@ -168,7 +168,9 @@ namespace Unity.Labs.SuperScience
                     {
                         foreach (var child in m_Children)
                         {
-                            child.Draw(window, child.m_GameObject.name);
+                            // Check for null in case  of destroyed object
+                            if (child.GameObject)
+                                child.Draw(window, child.m_GameObject.name);
                         }
                     }
                     else
@@ -197,7 +199,9 @@ namespace Unity.Labs.SuperScience
                                     {
                                         foreach (var child in m_Children)
                                         {
-                                            child.Draw(window, child.m_GameObject.name);
+                                            // Check for null in case  of destroyed object
+                                            if (child.m_GameObject)
+                                                child.Draw(window, child.m_GameObject.name);
                                         }
                                     }
                                 }
@@ -207,7 +211,9 @@ namespace Unity.Labs.SuperScience
                         {
                             foreach (var child in m_Children)
                             {
-                                child.Draw(window, child.m_GameObject.name);
+                                // Check for null in case  of destroyed object
+                                if (child.m_GameObject)
+                                    child.Draw(window, child.m_GameObject.name);
                             }
                         }
                     }
@@ -227,6 +233,9 @@ namespace Unity.Labs.SuperScience
         }
 
         const float k_LabelWidthRatio = 0.5f;
+        const string k_PersistentCallsSearchString = "m_PersistentCalls.m_Calls.Array.data[";
+        const string k_TargetPropertyName = "m_Target";
+        const string k_MethodNamePropertyName = "m_MethodName";
 
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
         readonly Dictionary<PropertyKey, bool> m_SerializedPropertiesWithMissingRefs = new Dictionary<PropertyKey, bool>();
@@ -303,10 +312,10 @@ namespace Unity.Labs.SuperScience
                         return false;
                     }
 
-                    if (propertyPath.Contains("m_PersistentCalls.m_Calls.Array.data["))
+                    if (propertyPath.Contains(k_PersistentCallsSearchString))
                     {
-                        var targetProperty = property.FindPropertyRelative("m_Target");
-                        var methodProperty = property.FindPropertyRelative("m_MethodName");
+                        var targetProperty = property.FindPropertyRelative(k_TargetPropertyName);
+                        var methodProperty = property.FindPropertyRelative(k_MethodNamePropertyName);
 
                         if (targetProperty != null && methodProperty != null)
                         {

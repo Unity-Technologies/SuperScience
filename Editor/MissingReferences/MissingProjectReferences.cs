@@ -126,8 +126,12 @@ namespace Unity.Labs.SuperScience
 
                     foreach (var prefab in m_Prefabs)
                     {
-                        EditorGUILayout.ObjectField(prefab.GameObject, typeof(GameObject), false);
-                        prefab.Draw(window, prefab.GameObject.name);
+                        var gameObject = prefab.GameObject;
+                        EditorGUILayout.ObjectField(gameObject, typeof(GameObject), false);
+
+                        // Check for null in case  of destroyed object
+                        if (gameObject)
+                            prefab.Draw(window, gameObject.name);
                     }
 
                     foreach (var asset in m_Assets)
