@@ -13,51 +13,6 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     abstract class MissingReferencesWindow : EditorWindow
     {
-        class PropertyKey : IEquatable<PropertyKey>
-        {
-            readonly SerializedObject m_Object;
-            readonly string m_Path;
-
-            public PropertyKey(SerializedObject serializedObject, string path)
-            {
-                m_Object = serializedObject;
-                m_Path = path;
-            }
-
-            public bool Equals(PropertyKey other)
-            {
-                if (ReferenceEquals(null, other))
-                    return false;
-
-                if (ReferenceEquals(this, other))
-                    return true;
-
-                return Equals(m_Object, other.m_Object) && m_Path == other.m_Path;
-            }
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj))
-                    return false;
-
-                if (ReferenceEquals(this, obj))
-                    return true;
-
-                if (obj.GetType() != GetType())
-                    return false;
-
-                return Equals((PropertyKey)obj);
-            }
-
-            public override int GetHashCode()
-            {
-                unchecked
-                {
-                    return ((m_Object != null ? m_Object.GetHashCode() : 0) * 397) ^ (m_Path != null ? m_Path.GetHashCode() : 0);
-                }
-            }
-        }
-
         protected class GameObjectContainer
         {
             class ComponentContainer
@@ -238,7 +193,6 @@ namespace Unity.Labs.SuperScience
         const string k_MethodNamePropertyName = "m_MethodName";
 
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
-        readonly Dictionary<PropertyKey, bool> m_SerializedPropertiesWithMissingRefs = new Dictionary<PropertyKey, bool>();
 
         GUIStyle m_MissingScriptStyle;
         bool m_FindMissingMethods = true;
@@ -263,7 +217,7 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         protected virtual void Scan()
         {
-            m_SerializedPropertiesWithMissingRefs.Clear();
+            m_SerializedObjects.Clear();
         }
 
         protected virtual void OnGUI()
@@ -297,20 +251,12 @@ namespace Unity.Labs.SuperScience
 
         bool CheckForMissingRefs(SerializedObject so, SerializedProperty property)
         {
-            bool result;
             var propertyPath = property.propertyPath;
-            var key = new PropertyKey(so, propertyPath);
-            if (m_SerializedPropertiesWithMissingRefs.TryGetValue(key, out result))
-                return result;
-
             switch (property.propertyType)
             {
                 case SerializedPropertyType.Generic:
                     if (!m_FindMissingMethods)
-                    {
-                        m_SerializedPropertiesWithMissingRefs[key] = false;
                         return false;
-                    }
 
                     if (propertyPath.Contains(k_PersistentCallsSearchString))
                     {
@@ -320,24 +266,17 @@ namespace Unity.Labs.SuperScience
                         if (targetProperty != null && methodProperty != null)
                         {
                             if (targetProperty.objectReferenceValue == null)
-                            {
-                                m_SerializedPropertiesWithMissingRefs[key] = false;
                                 return false;
-                            }
 
                             var type = targetProperty.objectReferenceValue.GetType();
                             try
                             {
                                 var method = type.GetMethod(methodProperty.stringValue);
                                 if (method == null)
-                                {
-                                    m_SerializedPropertiesWithMissingRefs[key] = true;
                                     return true;
-                                }
                             }
                             catch (Exception)
                             {
-                                m_SerializedPropertiesWithMissingRefs[key] = true;
                                 return true;
                             }
                         }
@@ -350,15 +289,11 @@ namespace Unity.Labs.SuperScience
                     // References to missing assets will have a null objectReferenceValue, but will retain
                     // their non-zero objectReferenceInstanceIDValue
                     if (property.objectReferenceValue == null && property.objectReferenceInstanceIDValue != 0)
-                    {
-                        m_SerializedPropertiesWithMissingRefs[key] = true;
                         return true;
-                    }
 
                     break;
             }
 
-            m_SerializedPropertiesWithMissingRefs[key] = false;
             return false;
         }
 
