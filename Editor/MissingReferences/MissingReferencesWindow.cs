@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -271,12 +272,12 @@ namespace Unity.Labs.SuperScience
                             var type = targetProperty.objectReferenceValue.GetType();
                             try
                             {
-                                var method = type.GetMethod(methodProperty.stringValue);
-                                if (method == null)
+                                if (!type.GetMethods().Any(info => info.Name == methodProperty.stringValue))
                                     return true;
                             }
-                            catch (Exception)
+                            catch (Exception e)
                             {
+                                Debug.LogException(e);
                                 return true;
                             }
                         }
