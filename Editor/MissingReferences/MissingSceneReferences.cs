@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -19,33 +18,28 @@ namespace Unity.Labs.SuperScience
 
         Vector2 m_ScrollPosition;
         bool m_ShowGameObjects;
-        readonly List<GameObject> m_GameObjects = new List<GameObject>();
+        readonly GameObjectContainer m_ParentGameObjectContainer = new GameObjectContainer();
 
         [MenuItem("Window/SuperScience/Missing Scene References")]
-        static void OnMenuItem() { GetWindow<MissingSceneReferences>("MissingSceneReferences"); }
+        static void OnMenuItem() { GetWindow<MissingSceneReferences>("Missing Scene References"); }
+
+        protected override void Clear()
+        {
+            m_ParentGameObjectContainer.Clear();
+        }
 
         protected override void Scan()
         {
+            base.Scan();
             m_Scanned = true;
             var activeScene = SceneManager.GetActiveScene();
             if (!activeScene.IsValid())
                 return;
 
-            m_GameObjects.Clear();
+            m_ParentGameObjectContainer.Clear();
             foreach (var gameObject in activeScene.GetRootGameObjects())
             {
-                ScanGameObject(gameObject);
-            }
-        }
-
-        void ScanGameObject(GameObject gameObject)
-        {
-            if (CheckForMissingRefs(gameObject))
-                m_GameObjects.Add(gameObject);
-
-            foreach (Transform child in gameObject.transform)
-            {
-                ScanGameObject(child.gameObject);
+                m_ParentGameObjectContainer.Add(this, gameObject);
             }
         }
 
@@ -59,29 +53,16 @@ namespace Unity.Labs.SuperScience
                 GUIUtility.ExitGUI();
             }
 
-            if (m_GameObjects.Count == 0)
+            if (m_ParentGameObjectContainer.Count == 0)
             {
                 GUILayout.Label(k_NoMissingReferences);
-                GUIUtility.ExitGUI();
             }
-
-            using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
+            else
             {
-                m_ScrollPosition = scrollView.scrollPosition;
-
-                m_ShowGameObjects = EditorGUILayout.Foldout(m_ShowGameObjects, string.Format("GameObjects: {0}", m_GameObjects.Count));
-                if (m_ShowGameObjects)
+                using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
-                    foreach (var gameObject in m_GameObjects)
-                    {
-                        EditorGUILayout.ObjectField(gameObject, typeof(GameObject), true);
-                        using (new EditorGUI.IndentLevelScope())
-                        {
-                            DrawObject(gameObject);
-                        }
-
-                        EditorGUILayout.Separator();
-                    }
+                    m_ScrollPosition = scrollView.scrollPosition;
+                    m_ParentGameObjectContainer.Draw(this, "GameObjects");
                 }
             }
         }
