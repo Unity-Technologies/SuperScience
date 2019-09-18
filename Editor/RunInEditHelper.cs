@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Unity.Labs.SuperScience
 {
@@ -58,7 +59,11 @@ namespace Unity.Labs.SuperScience
 
         void OnEnable()
         {
-            m_ClickableLabel = new GUIStyle {margin = new RectOffset(5, 5, 5, 5)};
+            m_ClickableLabel = new GUIStyle
+            {
+                margin = new RectOffset(5, 5, 5, 5),
+                normal = new GUIStyleState { textColor = EditorStyles.label.normal.textColor }
+            };
         }
 
         void OnGUI()
@@ -104,11 +109,24 @@ namespace Unity.Labs.SuperScience
             }
 
             k_RunningBehaviors.Clear();
-            var behaviors = FindObjectsOfType<MonoBehaviour>();
-            foreach (var behavior in behaviors)
+            var sceneCount = SceneManager.sceneCount;
+            for (var i = 0; i < sceneCount; i++)
             {
-                if (behavior.runInEditMode)
-                    k_RunningBehaviors.Add(behavior);
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.IsValid())
+                    continue;
+
+                GUILayout.Label(scene.name, EditorStyles.boldLabel);
+
+                var rootObjects = scene.GetRootGameObjects();
+                foreach (var go in rootObjects)
+                {
+                    foreach (var behaviour in go.GetComponentsInChildren<MonoBehaviour>(true))
+                    {
+                        if (behaviour.runInEditMode)
+                            k_RunningBehaviors.Add(behaviour);
+                    }
+                }
             }
 
             GUILayout.Label(string.Format("Objects currently running in edit mode: {0}", k_RunningBehaviors.Count));
