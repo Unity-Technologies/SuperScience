@@ -40,6 +40,7 @@ namespace Unity.Labs.SuperScience
         {
             m_Scanned = true;
             m_Prefabs.Clear();
+            m_Assets.Clear();
             foreach (var path in AssetDatabase.GetAllAssetPaths())
             {
                 if (Path.IsPathRooted(path))
