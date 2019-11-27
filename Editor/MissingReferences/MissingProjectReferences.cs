@@ -47,7 +47,7 @@ namespace Unity.Labs.SuperScience
                 }
             }
 
-            readonly Dictionary<string, Folder> m_Subfolders = new Dictionary<string, Folder>();
+            readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
             readonly List<GameObjectContainer> m_Prefabs = new List<GameObjectContainer>();
             readonly List<AssetContainer> m_Assets = new List<AssetContainer>();
             bool m_Visible;
@@ -155,6 +155,16 @@ namespace Unity.Labs.SuperScience
                     kvp.Value.SetVisibleRecursively(visible);
                 }
             }
+
+            public void SortContentsRecursively()
+            {
+                m_Assets.Sort((a, b) => a.UnityObject.name.CompareTo(b.UnityObject.name));
+                m_Prefabs.Sort((a, b) => a.GameObject.name.CompareTo(b.GameObject.name));
+                foreach (var kvp in m_Subfolders)
+                {
+                    kvp.Value.SortContentsRecursively();
+                }
+            }
         }
 
         const string k_Instructions = "Click the Refresh button to scan your project for missing references. WARNING: " +
@@ -192,6 +202,8 @@ namespace Unity.Labs.SuperScience
 
                 m_ParentFolder.Add(path, this);
             }
+
+            m_ParentFolder.SortContentsRecursively();
         }
 
         protected override void OnGUI()
