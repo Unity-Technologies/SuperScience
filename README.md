@@ -8,7 +8,7 @@ This repository is frequently evolving and expanding.  It is tested against the 
 ## How to Use ##
 Each gem is located in a separate folder in this repository.  They are presented with an example scene (if appropriate) and well-commented code to educate the reader.  
 
-This repository can be put in an empty Unity project or cloned into a child folder of an existing project.  
+This repository can be put in an empty Unity project or cloned into a child folder of an existing project.  Most gems can be used in earlier Unity versions but the sample scenes require 2019.1 or greater.
 
 Use the example scripts directly, or tweak and alter the algorithms inside to fit your needs.  A list of included gems follows:
 
