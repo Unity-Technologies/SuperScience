@@ -48,8 +48,11 @@ namespace Unity.Labs.SuperScience
             if (m_SerializedObject == null)
                 return;
 
-            var target = (GameObject)m_SerializedObject.targetObject;
+            var targetObject = m_SerializedObject.targetObject;
+            if (targetObject == null)
+                return;
 
+            var target = (GameObject)targetObject;
             GUILayout.Label(target.name, EditorStyles.boldLabel);
             var components = target.GetComponents<Component>();
             for (var i = 0; i < components.Length; i++)
