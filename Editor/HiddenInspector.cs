@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using System.Collections.Generic;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
@@ -8,6 +9,10 @@ namespace Unity.Labs.SuperScience
     {
         SerializedObject m_SerializedObject;
         SerializedProperty m_ComponentProperty;
+        readonly Dictionary<Component, bool> m_ComponentsExpanded = new Dictionary<Component, bool>();
+        readonly Dictionary<Component, SerializedObject> m_ComponentSerializedObjects = new Dictionary<Component, SerializedObject>();
+        Vector2 m_ScrollPosition;
+        bool m_ShowHiddenProperties;
 
         [MenuItem("Window/SuperScience/HiddenInspector")]
         static void OnMenuItem()
@@ -40,6 +45,8 @@ namespace Unity.Labs.SuperScience
 
             m_SerializedObject = new SerializedObject(activeGameObject);
             m_ComponentProperty = m_SerializedObject.FindProperty("m_Component");
+            m_ComponentSerializedObjects.Clear();
+            m_ComponentsExpanded.Clear();
         }
 
         // Destroy method from https://answers.unity.com/questions/15225/how-do-i-remove-null-components-ie-missingmono-scr.html
@@ -52,23 +59,83 @@ namespace Unity.Labs.SuperScience
             if (targetObject == null)
                 return;
 
+            m_SerializedObject.Update();
             var target = (GameObject)targetObject;
-            GUILayout.Label(target.name, EditorStyles.boldLabel);
-            var components = target.GetComponents<Component>();
-            for (var i = 0; i < components.Length; i++)
+            EditorGUILayout.LabelField(target.name, EditorStyles.boldLabel);
+            m_ShowHiddenProperties = EditorGUILayout.Toggle("Show Hidden Properties", m_ShowHiddenProperties);
+            using (var scrollView = new EditorGUILayout.ScrollViewScope(m_ScrollPosition))
             {
-                using (new EditorGUILayout.HorizontalScope())
+                m_ScrollPosition = scrollView.scrollPosition;
+                var components = target.GetComponents<Component>();
+                for (var i = 0; i < components.Length; i++)
                 {
+                    var expanded = false;
                     var component = components[i];
-                    GUILayout.Label(component ? component.GetType().ToString() : "Missing Component");
-
-                    if (GUILayout.Button("Destroy", GUILayout.Width(80)))
+                    using (new EditorGUILayout.HorizontalScope())
                     {
-                        m_ComponentProperty.DeleteArrayElementAtIndex(i);
+                        if (component != null)
+                        {
+                            if (!m_ComponentsExpanded.TryGetValue(component, out expanded))
+                                m_ComponentsExpanded[component] = false;
 
-                        m_SerializedObject.ApplyModifiedProperties();
-                        EditorSceneManager.MarkAllScenesDirty();
-                        break;
+                            var wasExpanded = expanded;
+                            expanded = EditorGUILayout.Foldout(expanded, component.GetType().ToString(), true);
+                            if (wasExpanded != expanded)
+                                m_ComponentsExpanded[component] = expanded;
+                        }
+                        else
+                        {
+                            EditorGUILayout.LabelField("Missing Component");
+                        }
+
+                        if (GUILayout.Button("Destroy", GUILayout.Width(80)))
+                        {
+                            m_ComponentProperty.DeleteArrayElementAtIndex(i);
+
+                            m_SerializedObject.ApplyModifiedProperties();
+                            EditorSceneManager.MarkAllScenesDirty();
+                            break;
+                        }
+                    }
+
+                    if (expanded)
+                    {
+                        SerializedObject componentSerializedObject;
+                        if (!m_ComponentSerializedObjects.TryGetValue(component, out componentSerializedObject))
+                        {
+                            componentSerializedObject = new SerializedObject(component);
+                            m_ComponentSerializedObjects[component] = componentSerializedObject;
+                        }
+
+                        componentSerializedObject.Update();
+
+                        using (new EditorGUI.IndentLevelScope())
+                        {
+                            var property = componentSerializedObject.GetIterator();
+                            property.Next(true);
+                            using (var check = new EditorGUI.ChangeCheckScope())
+                            {
+                                if (m_ShowHiddenProperties)
+                                {
+                                    while (property.Next(false))
+                                    {
+                                        EditorGUILayout.PropertyField(property, true);
+                                    }
+                                }
+                                else
+                                {
+                                    while (property.NextVisible(false))
+                                    {
+                                        EditorGUILayout.PropertyField(property, true);
+                                    }
+                                }
+
+                                if (check.changed)
+                                    componentSerializedObject.ApplyModifiedProperties();
+                            }
+                        }
+
+                        EditorGUILayout.Separator();
                     }
                 }
             }
