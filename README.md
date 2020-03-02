@@ -8,7 +8,7 @@ This repository is frequently evolving and expanding.  It is tested against the 
 ## How to Use ##
 Each gem is located in a separate folder in this repository.  They are presented with an example scene (if appropriate) and well-commented code to educate the reader.  
 
-This repository can be put in an empty Unity project or cloned into a child folder of an existing project.  
+This repository can be put in an empty Unity project or cloned into a child folder of an existing project.  Most gems can be used in earlier Unity versions but the sample scenes require 2019.1 or greater.
 
 Use the example scripts directly, or tweak and alter the algorithms inside to fit your needs.  A list of included gems follows:
 
@@ -87,3 +87,10 @@ The Material Dependencies tool was useful on a project where the number of mater
 Known issues:
 Legacy Cubemaps do not properly reference their source texutres, and those will always show up as not-referenced. We suggest that you add folders with legacy cubemaps to `k_ExcludePaths`, or modify the script to exclude .cubemap files.
 It's possible these windows will lock up Unity or cause it to consume a large amount of RAM. This is because we load every asset in the project to do our analysis, which doeosn't normally happen. It's quite possible that you have a project that doesn't all fit in memorry at once. If that is the case, you could try to split these scripts up to do one type of asset at a time, but it still may not help.
+
+## MissingReferences: Track down references to missing assets
+The goal of the MissingReferences window is to identify assets in your project that may be missing their dependencies. It can identify two problematic situations:
+- A script on a prefab is missing
+- An object field on an asset is missing its reference
+
+Note that this window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.
