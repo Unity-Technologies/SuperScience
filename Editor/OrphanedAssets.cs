@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
 {
@@ -43,7 +44,10 @@ namespace Unity.Labs.SuperScience
         IEnumerator m_Update;
         readonly Stopwatch m_FrameTimer = new Stopwatch();
 
-        [MenuItem("Window/Orphaned Assets")]
+        // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
+        static readonly List<UnityObject> k_Assets = new List<UnityObject>();
+
+        [MenuItem("Window/SuperScience/Orphaned Assets")]
         static void Init()
         {
             var window = GetWindow<OrphanedAssets>();
@@ -300,15 +304,22 @@ namespace Unity.Labs.SuperScience
             if (!foldout)
                 return;
 
+            k_Assets.Clear();
+            var type = group.type;
+            foreach (var orphanedAsset in guids)
+            {
+                k_Assets.Add(AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphanedAsset), type));
+            }
+
+            k_Assets.Sort((a, b) => a.name.CompareTo(b.name));
+
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Space(15);
                 using (new GUILayout.VerticalScope())
                 {
-                    var type = group.type;
-                    foreach (var orphanedAsset in guids)
+                    foreach (var asset in k_Assets)
                     {
-                        var asset = AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(orphanedAsset), type);
                         EditorGUILayout.ObjectField(asset.name, asset, type, false);
                     }
                 }

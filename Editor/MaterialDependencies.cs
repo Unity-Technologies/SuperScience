@@ -4,22 +4,37 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
 {
     class MaterialDependencies : EditorWindow
     {
+        class DependencyInfo
+        {
+            public string guid;
+            public Type type;
+            public UnityObject asset;
+            public Dictionary<UnityObject, string> references;
+        }
+
         static readonly string[] k_SearchFolders = { "Assets" };
         static readonly string[] k_ExcludePaths = { "libs", "Resources" };
 
-        readonly Dictionary<string, Dictionary<Object, string>> m_Shaders = new Dictionary<string, Dictionary<Object, string>>();
-        readonly Dictionary<string, Dictionary<Object, string>> m_Materials = new Dictionary<string, Dictionary<Object, string>>();
-        readonly Dictionary<string, Dictionary<Object, string>> m_Textures = new Dictionary<string, Dictionary<Object, string>>();
+        readonly Dictionary<string, Dictionary<UnityObject, string>> m_Shaders = new Dictionary<string, Dictionary<UnityObject, string>>();
+        readonly Dictionary<string, Dictionary<UnityObject, string>> m_Materials = new Dictionary<string, Dictionary<UnityObject, string>>();
+        readonly Dictionary<string, Dictionary<UnityObject, string>> m_Textures = new Dictionary<string, Dictionary<UnityObject, string>>();
+
+        readonly List<DependencyInfo> m_ShaderList = new List<DependencyInfo>();
+        readonly List<DependencyInfo> m_MaterialList = new List<DependencyInfo>();
+        readonly List<DependencyInfo> m_TextureList = new List<DependencyInfo>();
 
         Vector2 m_Scroll;
+        bool m_ShowShaders;
+        bool m_ShowMaterials;
+        bool m_ShowTextures;
 
-        [MenuItem("Window/Material Dependencies")]
+        [MenuItem("Window/SuperScience/Material Dependencies")]
         static void Init()
         {
             var window = GetWindow<MaterialDependencies>();
@@ -32,7 +47,7 @@ namespace Unity.Labs.SuperScience
 #if UNITY_2018_1_OR_NEWER
             EditorApplication.projectChanged += FindReferences;
 #else
-        EditorApplication.projectWindowChanged += FindReferences;
+            EditorApplication.projectWindowChanged += FindReferences;
 #endif
         }
 
@@ -164,6 +179,45 @@ namespace Unity.Labs.SuperScience
 
                 AddToDictionary(m_Textures, AssetDatabase.AssetPathToGUID(texturePath));
             }
+
+            //TODO: Refactor to use temp dictionaries
+            SetupList(m_Shaders, m_ShaderList);
+            SetupList(m_Materials, m_MaterialList);
+            SetupList(m_Textures, m_TextureList);
+        }
+
+        static void SetupList(Dictionary<string, Dictionary<UnityObject, string>> dictionary, List<DependencyInfo> list)
+        {
+            foreach (var kvp in dictionary)
+            {
+                var guid = kvp.Key;
+                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                var type = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                var asset = AssetDatabase.LoadAssetAtPath(assetPath, type);
+                list.Add(new DependencyInfo
+                {
+                    guid = guid,
+                    type = type,
+                    asset = asset,
+                    references = kvp.Value
+                });
+            }
+
+            list.Sort((a, b) =>
+            {
+                if (a.asset == null)
+                {
+                    if (b.asset == null)
+                        return 0;
+
+                    return -1;
+                }
+
+                if (b.asset == null)
+                    return 1;
+
+                return a.asset.name.CompareTo(b.asset.name);
+            });
         }
 
         void CheckFieldInfo(Type type, MonoImporter importer)
@@ -184,7 +238,7 @@ namespace Unity.Labs.SuperScience
                         continue;
                 }
 
-                if (field.FieldType.IsSubclassOf(typeof(Object)) || field.FieldType == typeof(Object))
+                if (field.FieldType.IsSubclassOf(typeof(UnityObject)) || field.FieldType == typeof(UnityObject))
                 {
                     var reference = importer.GetDefaultReference(field.Name);
 
@@ -228,7 +282,7 @@ namespace Unity.Labs.SuperScience
             }
         }
 
-        static void AddToDictionary(Dictionary<string, Dictionary<Object, string>> dict, string key, Object obj = null, string propertyPath = null)
+        static void AddToDictionary(Dictionary<string, Dictionary<UnityObject, string>> dict, string key, UnityObject obj = null, string propertyPath = null)
         {
             if (obj == null)
             {
@@ -238,10 +292,10 @@ namespace Unity.Labs.SuperScience
                 return;
             }
 
-            Dictionary<Object, string> references;
+            Dictionary<UnityObject, string> references;
             if (!dict.TryGetValue(key, out references) || references == null)
             {
-                references = new Dictionary<Object, string>();
+                references = new Dictionary<UnityObject, string>();
                 dict[key] = references;
             }
 
@@ -274,69 +328,71 @@ namespace Unity.Labs.SuperScience
 
             m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
 
-            MaterialGUI("Shaders", m_Shaders, position.width);
-            MaterialGUI("Materials", m_Materials, position.width);
-            MaterialGUI("Textures", m_Textures, position.width);
+            MaterialGUI(ref m_ShowShaders, "Shaders", m_ShaderList, position.width);
+            MaterialGUI(ref m_ShowMaterials, "Materials", m_MaterialList, position.width);
+            MaterialGUI(ref m_ShowTextures, "Textures", m_TextureList, position.width);
 
             EditorGUILayout.EndScrollView();
         }
 
-        static void MaterialGUI(string header, Dictionary<string, Dictionary<Object, string>> dictionary, float width)
+        static void MaterialGUI(ref bool show, string header, List<DependencyInfo> list, float width)
         {
-            EditorGUILayout.LabelField(header, dictionary.Count.ToString());
+            show = EditorGUILayout.Foldout(show, string.Format("{0}: {1}", header, list.Count), true);
+            if (!show)
+                return;
 
-            foreach (var kvp in dictionary)
+            using (new EditorGUI.IndentLevelScope())
             {
-                var guid = kvp.Key;
-                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                var type = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-                var asset = AssetDatabase.LoadAssetAtPath(assetPath, type);
-                if (asset == null)
-                    EditorGUILayout.LabelField("Missing", guid);
-                else
-                    EditorGUILayout.ObjectField(string.Empty, asset, type, false);
-
-                GUILayout.BeginHorizontal();
-                GUILayout.Space(25);
-                GUILayout.BeginVertical();
-
-                var references = kvp.Value;
-                if (references == null)
+                foreach (var info in list)
                 {
-                    GUILayout.Label("No References");
-                }
-                else
-                {
-                    foreach (var o in kvp.Value)
+                    var asset = info.asset;
+                    if (asset == null)
+                        EditorGUILayout.LabelField("Missing", info.guid);
+                    else
+                        EditorGUILayout.ObjectField(asset.name, asset, info.type, false);
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(25);
+                    GUILayout.BeginVertical();
+
+                    var references = info.references;
+                    if (references == null)
                     {
-                        if (o.Key == null)
+                        GUILayout.Label("No References");
+                    }
+                    else
+                    {
+                        foreach (var o in references)
                         {
-                            EditorGUILayout.LabelField("Missing", "");
-                        }
-                        else
-                        {
-                            GUILayout.BeginHorizontal();
-                            var obj = o.Key;
-                            var propertyPath = o.Value;
-                            if (string.IsNullOrEmpty(propertyPath))
+                            if (o.Key == null)
                             {
-                                EditorGUILayout.ObjectField(string.Empty, obj, obj.GetType(), false);
+                                EditorGUILayout.LabelField("Missing", "");
                             }
                             else
                             {
-                                EditorGUILayout.ObjectField(string.Empty, obj, obj.GetType(), false, GUILayout.Width(width * 0.5f));
-                                GUILayout.Label(propertyPath);
-                            }
+                                GUILayout.BeginHorizontal();
+                                var obj = o.Key;
+                                var propertyPath = o.Value;
+                                if (string.IsNullOrEmpty(propertyPath))
+                                {
+                                    EditorGUILayout.ObjectField(string.Empty, obj, obj.GetType(), false);
+                                }
+                                else
+                                {
+                                    EditorGUILayout.ObjectField(string.Empty, obj, obj.GetType(), false, GUILayout.Width(width * 0.5f));
+                                    GUILayout.Label(propertyPath);
+                                }
 
-                            GUILayout.EndHorizontal();
+                                GUILayout.EndHorizontal();
+                            }
                         }
                     }
+
+                    GUILayout.Space(15);
+
+                    GUILayout.EndVertical();
+                    GUILayout.EndHorizontal();
                 }
-
-                GUILayout.Space(15);
-
-                GUILayout.EndVertical();
-                GUILayout.EndHorizontal();
             }
         }
     }
