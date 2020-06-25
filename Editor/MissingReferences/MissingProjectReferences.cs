@@ -143,12 +143,11 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// Draw missing reference information for this Folder
             /// </summary>
-            /// <param name="window">The window which will display the information</param>
             /// <param name="name">The name of the folder</param>
-            public void Draw(MissingReferencesWindow window, string name)
+            public void Draw(string name)
             {
                 var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count));
+                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count), true);
 
                 // Hold alt to apply visibility state to all children (recursively)
                 if (m_Visible != wasVisible && Event.current.alt)
@@ -161,7 +160,7 @@ namespace Unity.Labs.SuperScience
                 {
                     foreach (var kvp in m_Subfolders)
                     {
-                        kvp.Value.Draw(window, kvp.Key);
+                        kvp.Value.Draw(kvp.Key);
                     }
 
                     foreach (var prefab in m_Prefabs)
@@ -171,7 +170,7 @@ namespace Unity.Labs.SuperScience
 
                         // Check for null in case  of destroyed object
                         if (gameObject)
-                            prefab.Draw(window);
+                            prefab.Draw();
                     }
 
                     foreach (var asset in m_Assets)
@@ -218,6 +217,7 @@ namespace Unity.Labs.SuperScience
             "This will load every asset in your project. For large projects, this may take a long time and/or crash the Editor.";
 
         const string k_NoMissingReferences = "No missing references in project";
+        const string k_ProjectFolderName = "Project";
 
         // Bool fields will be serialized to maintain state between domain reloads, but our list of GameObjects will not
         [NonSerialized]
@@ -274,7 +274,7 @@ namespace Unity.Labs.SuperScience
                 using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
                     m_ScrollPosition = scrollView.scrollPosition;
-                    m_ParentFolder.Draw(this, "Project");
+                    m_ParentFolder.Draw(k_ProjectFolderName);
                 }
             }
         }

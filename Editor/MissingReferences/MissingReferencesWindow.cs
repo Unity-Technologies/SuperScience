@@ -48,8 +48,7 @@ namespace Unity.Labs.SuperScience
                 /// <summary>
                 /// Draw the missing references UI for this component
                 /// </summary>
-                /// <param name="window"></param>
-                public void Draw(MissingReferencesWindow window)
+                public void Draw()
                 {
                     EditorGUILayout.ObjectField(m_Component, typeof(Component), false);
                     using (new EditorGUI.IndentLevelScope())
@@ -57,7 +56,7 @@ namespace Unity.Labs.SuperScience
                         // If the component equates to null, it is an empty scripting wrapper, indicating a missing script
                         if (m_Component == null)
                         {
-                            EditorGUILayout.LabelField("<color=red>Missing Script!</color>", window.m_MissingScriptStyle);
+                            EditorGUILayout.LabelField("<color=red>Missing Script!</color>", Styles.RichTextStyle);
                             return;
                         }
 
@@ -146,21 +145,22 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// Draw missing reference information for this GameObjectContainer
             /// </summary>
-            /// <param name="window">The window which will display the information</param>
-            internal void Draw(MissingReferencesWindow window)
+            internal void Draw()
             {
-                var name = m_GameObject.name;
+                var name = "GameObjects";
+                if (m_GameObject)
+                    name = m_GameObject.name;
 
                 // Missing prefabs will not have any components or children
                 if (m_IsMissingPrefab)
                 {
                     //TODO: use rich text to make this red
-                    EditorGUILayout.LabelField(string.Format("{0} - Missing Prefab", name));
+                    EditorGUILayout.LabelField(string.Format("<color=red>{0} - Missing Prefab</color>", name), Styles.RichTextStyle);
                     return;
                 }
 
                 var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count));
+                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count), true);
 
                 // Hold alt to apply visibility state to all children (recursively)
                 if (m_Visible != wasVisible && Event.current.alt)
@@ -182,14 +182,14 @@ namespace Unity.Labs.SuperScience
                     if (count > 0)
                     {
                         EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
-                        m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, string.Format("Components: {0}", count));
+                        m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, string.Format("Components: {0}", count), true);
                         if (m_ShowComponents)
                         {
                             using (new EditorGUI.IndentLevelScope())
                             {
                                 foreach (var component in m_Components)
                                 {
-                                    component.Draw(window);
+                                    component.Draw();
                                 }
                             }
                         }
@@ -198,7 +198,7 @@ namespace Unity.Labs.SuperScience
                     count = m_Children.Count;
                     if (count > 0)
                     {
-                        m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, string.Format("Children: {0}", count));
+                        m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, string.Format("Children: {0}", count), true);
                         if (m_ShowChildren)
                         {
                             using (new EditorGUI.IndentLevelScope())
@@ -217,7 +217,7 @@ namespace Unity.Labs.SuperScience
 
                         // Check for null in case  of destroyed object
                         if (childObject)
-                            child.Draw(window);
+                            child.Draw();
                     }
                 }
             }
@@ -238,6 +238,16 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        static class Styles
+        {
+            public static GUIStyle RichTextStyle;
+
+            static Styles()
+            {
+                RichTextStyle = new GUIStyle { richText = true };
+            }
+        }
+
         const float k_LabelWidthRatio = 0.5f;
         const string k_PersistentCallsSearchString = "m_PersistentCalls.m_Calls.Array.data[";
         const string k_TargetPropertyName = "m_Target";
@@ -245,13 +255,10 @@ namespace Unity.Labs.SuperScience
 
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
 
-        // TODO: use Styles class
-        GUIStyle m_MissingScriptStyle;
         bool m_FindMissingMethods = true;
 
         void OnEnable()
         {
-            m_MissingScriptStyle = new GUIStyle { richText = true };
             EditorSceneManager.activeSceneChangedInEditMode += OnActiveSceneChangedInEditMode;
         }
 

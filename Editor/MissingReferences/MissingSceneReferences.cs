@@ -77,7 +77,7 @@ namespace Unity.Labs.SuperScience
                 using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
                     m_ScrollPosition = scrollView.scrollPosition;
-                    m_ParentGameObjectContainer.Draw(this);
+                    m_ParentGameObjectContainer.Draw();
                 }
             }
         }
