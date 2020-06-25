@@ -40,11 +40,11 @@ namespace Unity.Labs.SuperScience
                 /// the given window.
                 /// </summary>
                 /// <param name="unityObject">The UnityObject to scan for missing references</param>
-                /// <param name="window">The window which will display the information</param>
-                public AssetContainer(UnityObject unityObject, MissingReferencesWindow window)
+                /// <param name="options">User-configurable options for this view</param>
+                public AssetContainer(UnityObject unityObject, Options options)
                 {
                     m_Object = unityObject;
-                    window.CheckForMissingReferences(unityObject, PropertiesWithMissingReferences);
+                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
                 }
 
                 /// <summary>
@@ -84,8 +84,8 @@ namespace Unity.Labs.SuperScience
             /// Scan the contents of a given path and add the results as a subfolder to this container
             /// </summary>
             /// <param name="path">The path to scan</param>
-            /// <param name="window">The window which will display the information</param>
-            public void AddAssetAtPath(string path, MissingReferencesWindow window)
+            /// <param name="options">User-configurable options for this view</param>
+            public void AddAssetAtPath(string path, Options options)
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (prefab != null)
@@ -93,14 +93,14 @@ namespace Unity.Labs.SuperScience
                     if (PrefabUtility.GetPrefabAssetType(prefab) == PrefabAssetType.Model)
                         return;
 
-                    var gameObjectContainer = new GameObjectContainer(prefab, window);
+                    var gameObjectContainer = new GameObjectContainer(prefab, options);
                     if (gameObjectContainer.Count > 0)
                         GetOrCreateFolderForAssetPath(path).m_Prefabs.Add(gameObjectContainer);
                 }
                 else
                 {
                     var asset = AssetDatabase.LoadAssetAtPath<UnityObject>(path);
-                    var assetContainer = new AssetContainer(asset, window);
+                    var assetContainer = new AssetContainer(asset, options);
                     if (assetContainer.PropertiesWithMissingReferences.Count > 0)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(assetContainer);
                 }
@@ -238,9 +238,9 @@ namespace Unity.Labs.SuperScience
         /// <summary>
         /// Load all assets in the AssetDatabase and check them for missing serialized references
         /// </summary>
-        protected override void Scan()
+        /// <param name="options">User-configurable options for this view</param>
+        protected override void Scan(Options options)
         {
-            base.Scan();
             m_Scanned = true;
             m_ParentFolder.Clear();
             foreach (var path in AssetDatabase.GetAllAssetPaths())
@@ -249,7 +249,7 @@ namespace Unity.Labs.SuperScience
                 if (Path.IsPathRooted(path))
                     continue;
 
-                m_ParentFolder.AddAssetAtPath(path, this);
+                m_ParentFolder.AddAssetAtPath(path, options);
             }
 
             m_ParentFolder.SortContentsRecursively();

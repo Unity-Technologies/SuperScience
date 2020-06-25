@@ -38,11 +38,11 @@ namespace Unity.Labs.SuperScience
                 /// the given window.
                 /// </summary>
                 /// <param name="component">The Component to scan for missing references</param>
-                /// <param name="window">The window which will display the information</param>
-                public ComponentContainer(Component component, MissingReferencesWindow window)
+                /// <param name="options">User-configurable options for this view</param>
+                public ComponentContainer(Component component, Options options)
                 {
                     m_Component = component;
-                    window.CheckForMissingReferences(component, PropertiesWithMissingReferences);
+                    CheckForMissingReferences(component, PropertiesWithMissingReferences, options);
                 }
 
                 /// <summary>
@@ -85,8 +85,8 @@ namespace Unity.Labs.SuperScience
             /// the given window.
             /// </summary>
             /// <param name="gameObject">The GameObject to scan for missing references</param>
-            /// <param name="window">The window which will display the information</param>
-            internal GameObjectContainer(GameObject gameObject, MissingReferencesWindow window)
+            /// <param name="options">User-configurable options for this view</param>
+            internal GameObjectContainer(GameObject gameObject, Options options)
             {
                 m_GameObject = gameObject;
 
@@ -95,7 +95,7 @@ namespace Unity.Labs.SuperScience
 
                 foreach (var component in gameObject.GetComponents<Component>())
                 {
-                    var container = new ComponentContainer(component, window);
+                    var container = new ComponentContainer(component, options);
                     if (component == null)
                     {
                         m_Components.Add(container);
@@ -113,7 +113,7 @@ namespace Unity.Labs.SuperScience
 
                 foreach (Transform child in gameObject.transform)
                 {
-                    AddChild(child.gameObject, window);
+                    AddChild(child.gameObject, options);
                 }
             }
 
@@ -128,10 +128,10 @@ namespace Unity.Labs.SuperScience
             /// Add a child GameObject to this GameObjectContainer
             /// </summary>
             /// <param name="gameObject">The GameObject to scan for missing references</param>
-            /// <param name="window">The window which will display the information</param>
-            public void AddChild(GameObject gameObject, MissingReferencesWindow window)
+            /// <param name="options">User-configurable options for this view</param>
+            public void AddChild(GameObject gameObject, Options options)
             {
-                var container = new GameObjectContainer(gameObject, window);
+                var container = new GameObjectContainer(gameObject, options);
                 Count += container.Count;
 
                 var isMissingPrefab = container.m_IsMissingPrefab;
@@ -261,16 +261,20 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        [Serializable]
+        protected class Options
+        {
+            public bool IncludeEmptyEvents = true;
+            public bool IncludeMissingMethods = true;
+            public bool IncludeUnsetMethods = true;
+        }
+
         const float k_LabelWidthRatio = 0.5f;
         const string k_PersistentCallsSearchString = "m_PersistentCalls.m_Calls.Array.data[";
         const string k_TargetPropertyName = "m_Target";
         const string k_MethodNamePropertyName = "m_MethodName";
 
-        readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
-
-        bool m_IncludeEmptyEvents = true;
-        bool m_IncludeMissingMethods = true;
-        bool m_IncludeUnsetMethods = true;
+        Options m_Options = new Options();
 
         void OnEnable()
         {
@@ -290,21 +294,19 @@ namespace Unity.Labs.SuperScience
         protected abstract void Clear();
 
         /// <summary>
-        /// Load all assets in the AssetDatabase and check them for missing serialized references
+        /// Scan for missing serialized references
         /// </summary>
-        protected virtual void Scan()
-        {
-            m_SerializedObjects.Clear();
-        }
+        /// <param name="options">User-configurable options for this view</param>
+        protected abstract void Scan(Options options);
 
         protected virtual void OnGUI()
         {
             EditorGUIUtility.labelWidth = position.width * k_LabelWidthRatio;
-            m_IncludeEmptyEvents = EditorGUILayout.Toggle(Styles.IncludeEmptyEventsContent, m_IncludeEmptyEvents);
-            m_IncludeMissingMethods = EditorGUILayout.Toggle(Styles.IncludeMissingMethodsContent, m_IncludeMissingMethods);
-            m_IncludeUnsetMethods = EditorGUILayout.Toggle(Styles.IncludeUnsetMethodsContent, m_IncludeUnsetMethods);
+            m_Options.IncludeEmptyEvents = EditorGUILayout.Toggle(Styles.IncludeEmptyEventsContent, m_Options.IncludeEmptyEvents);
+            m_Options.IncludeMissingMethods = EditorGUILayout.Toggle(Styles.IncludeMissingMethodsContent, m_Options.IncludeMissingMethods);
+            m_Options.IncludeUnsetMethods = EditorGUILayout.Toggle(Styles.IncludeUnsetMethodsContent, m_Options.IncludeUnsetMethods);
             if (GUILayout.Button("Refresh"))
-                Scan();
+                Scan(m_Options);
         }
 
         /// <summary>
@@ -312,29 +314,31 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         /// <param name="obj">The UnityObject to be scanned</param>
         /// <param name="properties">A list to which properties with missing references will be added</param>
+        /// <param name="options">User-configurable options for this view</param>
         /// <returns>True if the object has any missing references</returns>
-        public void CheckForMissingReferences(UnityObject obj, List<SerializedProperty> properties)
+        protected static void CheckForMissingReferences(UnityObject obj, List<SerializedProperty> properties, Options options)
         {
             if (obj == null)
                 return;
 
-            var so = GetSerializedObjectForUnityObject(obj);
-
-            var property = so.GetIterator();
+            var property = new SerializedObject(obj).GetIterator();
             while (property.NextVisible(true)) // enterChildren = true to scan all properties
             {
-                if (CheckForMissingReferences(property))
+                if (CheckForMissingReferences(property, options))
                     properties.Add(property.Copy()); // Use a copy of this property because we are iterating on it
             }
         }
 
-        bool CheckForMissingReferences(SerializedProperty property)
+        static bool CheckForMissingReferences(SerializedProperty property, Options options)
         {
             var propertyPath = property.propertyPath;
             switch (property.propertyType)
             {
                 case SerializedPropertyType.Generic:
-                    if (!m_IncludeEmptyEvents && !m_IncludeMissingMethods && !m_IncludeUnsetMethods)
+                    var includeEmptyEvents = options.IncludeEmptyEvents;
+                    var includeUnsetMethods = options.IncludeUnsetMethods;
+                    var includeMissingMethods = options.IncludeMissingMethods;
+                    if (!includeEmptyEvents && !includeUnsetMethods && !includeMissingMethods)
                         return false;
 
                     // Property paths matching a particular pattern will contain serialized UnityEvent references
@@ -354,15 +358,15 @@ namespace Unity.Labs.SuperScience
                                 if (property.objectReferenceInstanceIDValue != 0)
                                     return false;
 
-                                return m_IncludeEmptyEvents;
+                                return includeEmptyEvents;
                             }
 
                             var methodName = methodProperty.stringValue;
                             // Include if the method name is empty and the user has chosen to include unset methods
                             if (string.IsNullOrEmpty(methodName))
-                                return m_IncludeUnsetMethods;
+                                return includeUnsetMethods;
 
-                            if (m_IncludeMissingMethods)
+                            if (includeMissingMethods)
                             {
                                 // If the user has chosen to include missing methods, check if the target object type
                                 // for public methods with the same name as the value of the method property
@@ -396,23 +400,6 @@ namespace Unity.Labs.SuperScience
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// For a given UnityObject, get the cached SerializedObject, or create one and cache it
-        /// </summary>
-        /// <param name="obj">The UnityObject</param>
-        /// <returns>A cached SerializedObject wrapper for the given UnityObject</returns>
-        SerializedObject GetSerializedObjectForUnityObject(UnityObject obj)
-        {
-            SerializedObject so;
-            if (!m_SerializedObjects.TryGetValue(obj, out so))
-            {
-                so = new SerializedObject(obj);
-                m_SerializedObjects[obj] = so;
-            }
-
-            return so;
         }
 
         /// <summary>

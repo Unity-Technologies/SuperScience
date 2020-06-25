@@ -29,16 +29,19 @@ namespace Unity.Labs.SuperScience
             m_ParentGameObjectContainer.Clear();
         }
 
-        protected override void Scan()
+        /// <summary>
+        /// Scan all assets in the active scene for missing serialized references
+        /// </summary>
+        /// <param name="options">User-configurable options for this view</param>
+        protected override void Scan(Options options)
         {
-            base.Scan();
             m_Scanned = true;
 
             // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
-                ScanScene(prefabStage.scene);
+                ScanScene(prefabStage.scene, options);
                 return;
             }
 
@@ -47,14 +50,15 @@ namespace Unity.Labs.SuperScience
             if (!activeScene.IsValid())
                 return;
 
-            ScanScene(activeScene);
+            ScanScene(activeScene, options);
         }
-        void ScanScene(Scene scene)
+
+        void ScanScene(Scene scene, Options options)
         {
             m_ParentGameObjectContainer.Clear();
             foreach (var gameObject in scene.GetRootGameObjects())
             {
-                m_ParentGameObjectContainer.AddChild(gameObject, this);
+                m_ParentGameObjectContainer.AddChild(gameObject, options);
             }
         }
 
