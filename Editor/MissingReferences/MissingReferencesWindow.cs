@@ -273,6 +273,7 @@ namespace Unity.Labs.SuperScience
         const string k_PersistentCallsSearchString = "m_PersistentCalls.m_Calls.Array.data[";
         const string k_TargetPropertyName = "m_Target";
         const string k_MethodNamePropertyName = "m_MethodName";
+        const string k_ScanButtonName = "Scan";
 
         Options m_Options = new Options();
 
@@ -305,7 +306,7 @@ namespace Unity.Labs.SuperScience
             m_Options.IncludeEmptyEvents = EditorGUILayout.Toggle(Styles.IncludeEmptyEventsContent, m_Options.IncludeEmptyEvents);
             m_Options.IncludeMissingMethods = EditorGUILayout.Toggle(Styles.IncludeMissingMethodsContent, m_Options.IncludeMissingMethods);
             m_Options.IncludeUnsetMethods = EditorGUILayout.Toggle(Styles.IncludeUnsetMethodsContent, m_Options.IncludeUnsetMethods);
-            if (GUILayout.Button("Refresh"))
+            if (GUILayout.Button(k_ScanButtonName))
                 Scan(m_Options);
         }
 
