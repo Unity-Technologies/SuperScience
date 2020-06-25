@@ -53,7 +53,7 @@ namespace Unity.Labs.SuperScience
                         // If the component equates to null, it is an empty scripting wrapper, indicating a missing script
                         if (m_Component == null)
                         {
-                            EditorGUILayout.LabelField("<color=red>Missing Script!</color>", Styles.RichTextStyle);
+                            EditorGUILayout.LabelField("<color=red>Missing Script!</color>", Styles.RichTextLabel);
                             return;
                         }
 
@@ -66,6 +66,8 @@ namespace Unity.Labs.SuperScience
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
             bool m_IsMissingPrefab;
+            int m_MissingPropertiesInChildren;
+            int m_MissingPropertiesInComponents;
 
             bool m_Visible;
             bool m_ShowComponents;
@@ -97,6 +99,7 @@ namespace Unity.Labs.SuperScience
                     {
                         m_Components.Add(container);
                         Count++;
+                        m_MissingPropertiesInComponents++;
                         continue;
                     }
 
@@ -105,6 +108,7 @@ namespace Unity.Labs.SuperScience
                     {
                         m_Components.Add(container);
                         Count += count;
+                        m_MissingPropertiesInComponents += count;
                     }
                 }
 
@@ -128,15 +132,17 @@ namespace Unity.Labs.SuperScience
             /// <param name="options">User-configurable options for this view</param>
             public void AddChild(GameObject gameObject, Options options)
             {
-                var container = new GameObjectContainer(gameObject, options);
-                Count += container.Count;
+                var child = new GameObjectContainer(gameObject, options);
+                var childCount = child.Count;
+                Count += childCount;
+                m_MissingPropertiesInChildren += childCount;
 
-                var isMissingPrefab = container.m_IsMissingPrefab;
+                var isMissingPrefab = child.m_IsMissingPrefab;
                 if (isMissingPrefab)
                     Count++;
 
-                if (container.Count > 0 || isMissingPrefab)
-                    m_Children.Add(container);
+                if (childCount > 0 || isMissingPrefab)
+                    m_Children.Add(child);
             }
 
             /// <summary>
@@ -144,15 +150,12 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             internal void Draw(string name)
             {
-                // Missing prefabs will not have any components or children
-                if (m_IsMissingPrefab)
-                {
-                    EditorGUILayout.LabelField(string.Format("<color=red>{0} - Missing Prefab</color>", name), Styles.RichTextStyle);
-                    return;
-                }
-
                 var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count), true);
+                var label = string.Format("{0}: {1}", name, Count);
+                if (m_IsMissingPrefab)
+                    label = string.Format("<color=red>{0} - Missing Prefab</color>", label);
+
+                m_Visible = EditorGUILayout.Foldout(m_Visible, label, true, Styles.RichTextFoldout);
 
                 // Hold alt to apply visibility state to all children (recursively)
                 if (m_Visible != wasVisible && Event.current.alt)
@@ -170,11 +173,11 @@ namespace Unity.Labs.SuperScience
                         return;
                     }
 
-                    var count = m_Components.Count;
-                    if (count > 0)
+                    if (m_MissingPropertiesInComponents > 0)
                     {
                         EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
-                        m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, string.Format("Components: {0}", count), true);
+                        label = string.Format("Components: {0}", m_MissingPropertiesInComponents);
+                        m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, label, true);
                         if (m_ShowComponents)
                         {
                             using (new EditorGUI.IndentLevelScope())
@@ -187,10 +190,10 @@ namespace Unity.Labs.SuperScience
                         }
                     }
 
-                    count = m_Children.Count;
-                    if (count > 0)
+                    if (m_MissingPropertiesInChildren > 0)
                     {
-                        m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, string.Format("Children: {0}", count), true);
+                        label = string.Format("Children: {0}", m_MissingPropertiesInChildren);
+                        m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, label, true);
                         if (m_ShowChildren)
                         {
                             using (new EditorGUI.IndentLevelScope())
@@ -239,14 +242,20 @@ namespace Unity.Labs.SuperScience
             const string k_IncludeUnsetMethodsLabel = "Include Unset Methods";
             const string k_IncludeUnsetMethodsTooltip = "While scanning properties for missing references, include serialized UnityEvent references which do not specify a method";
 
-            public static GUIStyle RichTextStyle;
+            public static GUIStyle RichTextFoldout;
+            public static GUIStyle RichTextLabel;
             public static GUIContent IncludeEmptyEventsContent;
             public static GUIContent IncludeMissingMethodsContent;
             public static GUIContent IncludeUnsetMethodsContent;
 
             static Styles()
             {
-                RichTextStyle = new GUIStyle { richText = true };
+                RichTextFoldout = EditorStyles.foldout;
+                RichTextFoldout.richText = true;
+
+                RichTextLabel = EditorStyles.label;
+                RichTextLabel.richText = true;
+
                 IncludeEmptyEventsContent = new GUIContent(k_IncludeEmptyEventsLabel, k_IncludeEmptyEventsTooltip);
                 IncludeMissingMethodsContent = new GUIContent(k_IncludeMissingMethodsLabel, k_IncludeMissingMethodsTooltip);
                 IncludeUnsetMethodsContent = new GUIContent(k_IncludeUnsetMethodsLabel, k_IncludeUnsetMethodsTooltip);
