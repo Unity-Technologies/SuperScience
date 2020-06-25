@@ -31,7 +31,6 @@ namespace Unity.Labs.SuperScience
                 readonly Component m_Component;
                 public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
-                // TODO: Try and remove window argument
                 /// <summary>
                 /// Initialize a ComponentContainer to represent the given Component
                 /// This will scan the component for missing references and retain the information for display in
@@ -154,7 +153,6 @@ namespace Unity.Labs.SuperScience
                 // Missing prefabs will not have any components or children
                 if (m_IsMissingPrefab)
                 {
-                    //TODO: use rich text to make this red
                     EditorGUILayout.LabelField(string.Format("<color=red>{0} - Missing Prefab</color>", name), Styles.RichTextStyle);
                     return;
                 }
