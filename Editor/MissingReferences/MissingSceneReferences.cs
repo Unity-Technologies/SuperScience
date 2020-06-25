@@ -7,6 +7,9 @@ using UnityEngine.SceneManagement;
 
 namespace Unity.Labs.SuperScience
 {
+    /// <summary>
+    /// Scans all loaded scenes for references to missing (deleted) assets and other types of missing references and displays the results in an EditorWindow
+    /// </summary>
     sealed class MissingSceneReferences : MissingReferencesWindow
     {
         const string k_Instructions = "Click the Scan button to scan the active scene for missing references. " +

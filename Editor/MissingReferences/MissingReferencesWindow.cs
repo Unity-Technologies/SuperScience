@@ -8,7 +8,7 @@ using UnityObject = UnityEngine.Object;
 namespace Unity.Labs.SuperScience
 {
     /// <summary>
-    /// Scans the project for serialized references to missing (deleted) assets and displays the results in an EditorWindow
+    /// Scans the project for serialized references to missing (deleted) assets and other types of missing references and displays the results in an EditorWindow
     /// </summary>
     abstract class MissingReferencesWindow : EditorWindow
     {
@@ -116,13 +116,6 @@ namespace Unity.Labs.SuperScience
                 {
                     AddChild(child.gameObject, options);
                 }
-            }
-
-            public void Clear()
-            {
-                m_Children.Clear();
-                m_Components.Clear();
-                Count = 0;
             }
 
             /// <summary>
