@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
@@ -144,12 +142,8 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// Draw missing reference information for this GameObjectContainer
             /// </summary>
-            internal void Draw()
+            internal void Draw(string name)
             {
-                var name = "GameObjects";
-                if (m_GameObject)
-                    name = m_GameObject.name;
-
                 // Missing prefabs will not have any components or children
                 if (m_IsMissingPrefab)
                 {
@@ -215,7 +209,7 @@ namespace Unity.Labs.SuperScience
 
                         // Check for null in case  of destroyed object
                         if (childObject)
-                            child.Draw();
+                            child.Draw(childObject.name);
                     }
                 }
             }
@@ -274,23 +268,6 @@ namespace Unity.Labs.SuperScience
         const string k_ScanButtonName = "Scan";
 
         Options m_Options = new Options();
-
-        void OnEnable()
-        {
-            EditorSceneManager.activeSceneChangedInEditMode += OnActiveSceneChangedInEditMode;
-        }
-
-        void OnActiveSceneChangedInEditMode(Scene oldScene, Scene newScene) { Clear(); }
-
-        void OnDisable()
-        {
-            EditorSceneManager.activeSceneChangedInEditMode -= OnActiveSceneChangedInEditMode;
-        }
-
-        /// <summary>
-        /// Clear this window's cache of missing references
-        /// </summary>
-        protected abstract void Clear();
 
         /// <summary>
         /// Scan for missing serialized references
@@ -354,7 +331,7 @@ namespace Unity.Labs.SuperScience
                             if (targetProperty.objectReferenceValue == null)
                             {
                                 // If the target is a missing reference it will be caught below
-                                if (property.objectReferenceInstanceIDValue != 0)
+                                if (targetProperty.objectReferenceInstanceIDValue != 0)
                                     return false;
 
                                 return includeEmptyEvents;

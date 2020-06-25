@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
@@ -12,6 +13,7 @@ namespace Unity.Labs.SuperScience
             "WARNING: For large scenes, this may take a long time and/or crash the Editor.";
 
         const string k_NoMissingReferences = "No missing references in active scene";
+        const string k_UntitledSceneName = "Untitled";
 
         // Bool fields will be serialized to maintain state between domain reloads, but our list of GameObjects will not
         [NonSerialized]
@@ -19,15 +21,10 @@ namespace Unity.Labs.SuperScience
 
         Vector2 m_ScrollPosition;
         bool m_ShowGameObjects;
-        readonly GameObjectContainer m_ParentGameObjectContainer = new GameObjectContainer();
+        readonly List<KeyValuePair<string, GameObjectContainer>> m_SceneRoots = new List<KeyValuePair<string, GameObjectContainer>>();
 
         [MenuItem("Window/SuperScience/Missing Scene References")]
         static void OnMenuItem() { GetWindow<MissingSceneReferences>("Missing Scene References"); }
-
-        protected override void Clear()
-        {
-            m_ParentGameObjectContainer.Clear();
-        }
 
         /// <summary>
         /// Scan all assets in the active scene for missing serialized references
@@ -36,6 +33,7 @@ namespace Unity.Labs.SuperScience
         protected override void Scan(Options options)
         {
             m_Scanned = true;
+            m_SceneRoots.Clear();
 
             // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
@@ -45,20 +43,32 @@ namespace Unity.Labs.SuperScience
                 return;
             }
 
-            // TODO: Scan all loaded scenes
-            var activeScene = SceneManager.GetActiveScene();
-            if (!activeScene.IsValid())
-                return;
+            var loadedSceneCount = SceneManager.sceneCount;
+            for (var i = 0; i < loadedSceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (!scene.IsValid())
+                    continue;
 
-            ScanScene(activeScene, options);
+                ScanScene(scene, options);
+            }
         }
 
         void ScanScene(Scene scene, Options options)
         {
-            m_ParentGameObjectContainer.Clear();
+            var rootObjectContainer = new GameObjectContainer();
             foreach (var gameObject in scene.GetRootGameObjects())
             {
-                m_ParentGameObjectContainer.AddChild(gameObject, options);
+                rootObjectContainer.AddChild(gameObject, options);
+            }
+
+            if (rootObjectContainer.Count > 0)
+            {
+                var sceneName = scene.name;
+                if (string.IsNullOrEmpty(sceneName))
+                    sceneName = k_UntitledSceneName;
+
+                m_SceneRoots.Add(new KeyValuePair<string, GameObjectContainer>(sceneName, rootObjectContainer));
             }
         }
 
@@ -72,7 +82,7 @@ namespace Unity.Labs.SuperScience
                 GUIUtility.ExitGUI();
             }
 
-            if (m_ParentGameObjectContainer.Count == 0)
+            if (m_SceneRoots.Count == 0)
             {
                 GUILayout.Label(k_NoMissingReferences);
             }
@@ -81,7 +91,10 @@ namespace Unity.Labs.SuperScience
                 using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
                     m_ScrollPosition = scrollView.scrollPosition;
-                    m_ParentGameObjectContainer.Draw();
+                    foreach (var kvp in m_SceneRoots)
+                    {
+                        kvp.Value.Draw(kvp.Key);
+                    }
                 }
             }
         }

@@ -170,7 +170,7 @@ namespace Unity.Labs.SuperScience
 
                         // Check for null in case  of destroyed object
                         if (gameObject)
-                            prefab.Draw();
+                            prefab.Draw(gameObject.name);
                     }
 
                     foreach (var asset in m_Assets)
@@ -228,12 +228,6 @@ namespace Unity.Labs.SuperScience
 
         [MenuItem("Window/SuperScience/Missing Project References")]
         static void OnMenuItem() { GetWindow<MissingProjectReferences>("Missing Project References"); }
-
-
-        protected override void Clear()
-        {
-            m_ParentFolder.Clear();
-        }
 
         /// <summary>
         /// Load all assets in the AssetDatabase and check them for missing serialized references
