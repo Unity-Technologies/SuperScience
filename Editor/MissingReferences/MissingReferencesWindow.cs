@@ -66,8 +66,8 @@ namespace Unity.Labs.SuperScience
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
             bool m_IsMissingPrefab;
-            int m_MissingPropertiesInChildren;
-            int m_MissingPropertiesInComponents;
+            int m_MissingReferencesInChildren;
+            int m_MissingReferencesInComponents;
 
             bool m_Visible;
             bool m_ShowComponents;
@@ -99,7 +99,7 @@ namespace Unity.Labs.SuperScience
                     {
                         m_Components.Add(container);
                         Count++;
-                        m_MissingPropertiesInComponents++;
+                        m_MissingReferencesInComponents++;
                         continue;
                     }
 
@@ -108,7 +108,7 @@ namespace Unity.Labs.SuperScience
                     {
                         m_Components.Add(container);
                         Count += count;
-                        m_MissingPropertiesInComponents += count;
+                        m_MissingReferencesInComponents += count;
                     }
                 }
 
@@ -128,7 +128,7 @@ namespace Unity.Labs.SuperScience
                 var child = new GameObjectContainer(gameObject, options);
                 var childCount = child.Count;
                 Count += childCount;
-                m_MissingPropertiesInChildren += childCount;
+                m_MissingReferencesInChildren += childCount;
 
                 var isMissingPrefab = child.m_IsMissingPrefab;
                 if (isMissingPrefab)
@@ -148,6 +148,13 @@ namespace Unity.Labs.SuperScience
                 if (m_IsMissingPrefab)
                     label = string.Format("<color=red>{0} - Missing Prefab</color>", label);
 
+                // If this object has 0 missing references but is being drawn, it is a missing prefab with no overrides
+                if (Count == 0)
+                {
+                    EditorGUILayout.LabelField(label, Styles.RichTextLabel);
+                    return;
+                }
+
                 m_Visible = EditorGUILayout.Foldout(m_Visible, label, true, Styles.RichTextFoldout);
 
                 // Hold alt to apply visibility state to all children (recursively)
@@ -166,10 +173,10 @@ namespace Unity.Labs.SuperScience
                         return;
                     }
 
-                    if (m_MissingPropertiesInComponents > 0)
+                    if (m_MissingReferencesInComponents > 0)
                     {
                         EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
-                        label = string.Format("Components: {0}", m_MissingPropertiesInComponents);
+                        label = string.Format("Components: {0}", m_MissingReferencesInComponents);
                         m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, label, true);
                         if (m_ShowComponents)
                         {
@@ -183,9 +190,9 @@ namespace Unity.Labs.SuperScience
                         }
                     }
 
-                    if (m_MissingPropertiesInChildren > 0)
+                    if (m_MissingReferencesInChildren > 0)
                     {
-                        label = string.Format("Children: {0}", m_MissingPropertiesInChildren);
+                        label = string.Format("Children: {0}", m_MissingReferencesInChildren);
                         m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, label, true);
                         if (m_ShowChildren)
                         {
