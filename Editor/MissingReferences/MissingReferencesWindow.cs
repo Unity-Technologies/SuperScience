@@ -57,6 +57,8 @@ namespace Unity.Labs.SuperScience
             readonly GameObject m_GameObject;
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
+            bool m_IsMissingPrefab;
+
             bool m_Visible;
             bool m_ShowComponents;
             bool m_ShowChildren;
@@ -68,6 +70,10 @@ namespace Unity.Labs.SuperScience
             internal GameObjectContainer(GameObject gameObject, MissingReferencesWindow window)
             {
                 m_GameObject = gameObject;
+
+                if (PrefabUtility.IsAnyPrefabInstanceRoot(gameObject))
+                    m_IsMissingPrefab = PrefabUtility.IsPrefabAssetMissing(gameObject);
+
                 foreach (var component in gameObject.GetComponents<Component>())
                 {
                     var container = new ComponentContainer(component, window);
@@ -104,12 +110,22 @@ namespace Unity.Labs.SuperScience
                 var container = new GameObjectContainer(gameObject, window);
                 Count += container.Count;
 
-                if (container.Count > 0)
+                var isMissingPrefab = container.m_IsMissingPrefab;
+                if (isMissingPrefab)
+                    Count++;
+
+                if (container.Count > 0 || isMissingPrefab)
                     m_Children.Add(container);
             }
 
             public void Draw(MissingReferencesWindow window, string name)
             {
+                if (m_IsMissingPrefab)
+                {
+                    EditorGUILayout.LabelField(string.Format("{0} - Missing Prefab", name));
+                    return;
+                }
+
                 var wasVisible = m_Visible;
                 m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count));
                 if (m_Visible != wasVisible && Event.current.alt)
