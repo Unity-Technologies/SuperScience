@@ -33,6 +33,8 @@ namespace Unity.Labs.SuperScience
         {
             base.Scan();
             m_Scanned = true;
+
+            // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
@@ -40,19 +42,19 @@ namespace Unity.Labs.SuperScience
                 return;
             }
 
+            // TODO: Scan all loaded scenes
             var activeScene = SceneManager.GetActiveScene();
             if (!activeScene.IsValid())
                 return;
 
             ScanScene(activeScene);
         }
-
         void ScanScene(Scene scene)
         {
             m_ParentGameObjectContainer.Clear();
             foreach (var gameObject in scene.GetRootGameObjects())
             {
-                m_ParentGameObjectContainer.Add(this, gameObject);
+                m_ParentGameObjectContainer.AddChild(gameObject, this);
             }
         }
 
@@ -75,7 +77,7 @@ namespace Unity.Labs.SuperScience
                 using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
                     m_ScrollPosition = scrollView.scrollPosition;
-                    m_ParentGameObjectContainer.Draw(this, "GameObjects");
+                    m_ParentGameObjectContainer.Draw(this);
                 }
             }
         }

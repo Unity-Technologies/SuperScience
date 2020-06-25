@@ -14,42 +14,54 @@ namespace Unity.Labs.SuperScience
     /// </summary>
     abstract class MissingReferencesWindow : EditorWindow
     {
+        /// <summary>
+        /// Tree structure for GameObject scan results
+        /// When the Scan method encounters a GameObject in a scene or a prefab in the project, we initialize one of
+        /// these using the GameObject as an argument. This scans the object and its components/children, retaining
+        /// the results for display in the GUI. The window calls into these helper objects to draw them, as well.
+        /// </summary>
         protected class GameObjectContainer
         {
+            /// <summary>
+            /// Container for component scan results. Just as with GameObjectContainer, we initialize one of these
+            /// using a component to scan it for missing references and retain the results
+            /// </summary>
             class ComponentContainer
             {
                 readonly Component m_Component;
                 public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
+                // TODO: Try and remove window argument
+                /// <summary>
+                /// Initialize a ComponentContainer to represent the given Component
+                /// This will scan the component for missing references and retain the information for display in
+                /// the given window.
+                /// </summary>
+                /// <param name="component">The Component to scan for missing references</param>
+                /// <param name="window">The window which will display the information</param>
                 public ComponentContainer(Component component, MissingReferencesWindow window)
                 {
                     m_Component = component;
-                    window.CheckForMissingRefs(component, PropertiesWithMissingReferences);
+                    window.CheckForMissingReferences(component, PropertiesWithMissingReferences);
                 }
 
+                /// <summary>
+                /// Draw the missing references UI for this component
+                /// </summary>
+                /// <param name="window"></param>
                 public void Draw(MissingReferencesWindow window)
                 {
                     EditorGUILayout.ObjectField(m_Component, typeof(Component), false);
                     using (new EditorGUI.IndentLevelScope())
                     {
+                        // If the component equates to null, it is an empty scripting wrapper, indicating a missing script
                         if (m_Component == null)
                         {
                             EditorGUILayout.LabelField("<color=red>Missing Script!</color>", window.m_MissingScriptStyle);
                             return;
                         }
 
-                        foreach (var property in PropertiesWithMissingReferences)
-                        {
-                            switch (property.propertyType)
-                            {
-                                case SerializedPropertyType.Generic:
-                                    EditorGUILayout.LabelField(string.Format("Missing Method: {0}", property.propertyPath));
-                                    break;
-                                case SerializedPropertyType.ObjectReference:
-                                    EditorGUILayout.PropertyField(property, new GUIContent(property.propertyPath));
-                                    break;
-                            }
-                        }
+                        DrawPropertiesWithMissingReferences(PropertiesWithMissingReferences);
                     }
                 }
             }
@@ -67,6 +79,14 @@ namespace Unity.Labs.SuperScience
             public GameObject GameObject { get { return m_GameObject; } }
 
             public GameObjectContainer() { }
+
+            /// <summary>
+            /// Initialize a GameObjectContainer to represent the given GameObject
+            /// This will scan the component for missing references and retain the information for display in
+            /// the given window.
+            /// </summary>
+            /// <param name="gameObject">The GameObject to scan for missing references</param>
+            /// <param name="window">The window which will display the information</param>
             internal GameObjectContainer(GameObject gameObject, MissingReferencesWindow window)
             {
                 m_GameObject = gameObject;
@@ -94,7 +114,7 @@ namespace Unity.Labs.SuperScience
 
                 foreach (Transform child in gameObject.transform)
                 {
-                    Add(window, child.gameObject);
+                    AddChild(child.gameObject, window);
                 }
             }
 
@@ -105,7 +125,12 @@ namespace Unity.Labs.SuperScience
                 Count = 0;
             }
 
-            public void Add(MissingReferencesWindow window, GameObject gameObject)
+            /// <summary>
+            /// Add a child GameObject to this GameObjectContainer
+            /// </summary>
+            /// <param name="gameObject">The GameObject to scan for missing references</param>
+            /// <param name="window">The window which will display the information</param>
+            public void AddChild(GameObject gameObject, MissingReferencesWindow window)
             {
                 var container = new GameObjectContainer(gameObject, window);
                 Count += container.Count;
@@ -118,16 +143,26 @@ namespace Unity.Labs.SuperScience
                     m_Children.Add(container);
             }
 
-            public void Draw(MissingReferencesWindow window, string name)
+            /// <summary>
+            /// Draw missing reference information for this GameObjectContainer
+            /// </summary>
+            /// <param name="window">The window which will display the information</param>
+            internal void Draw(MissingReferencesWindow window)
             {
+                var name = m_GameObject.name;
+
+                // Missing prefabs will not have any components or children
                 if (m_IsMissingPrefab)
                 {
+                    //TODO: use rich text to make this red
                     EditorGUILayout.LabelField(string.Format("{0} - Missing Prefab", name));
                     return;
                 }
 
                 var wasVisible = m_Visible;
                 m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count));
+
+                // Hold alt to apply visibility state to all children (recursively)
                 if (m_Visible != wasVisible && Event.current.alt)
                     SetVisibleRecursively(m_Visible);
 
@@ -136,62 +171,61 @@ namespace Unity.Labs.SuperScience
 
                 using (new EditorGUI.IndentLevelScope())
                 {
+                    // If m_GameObject is null, this is a scene
                     if (m_GameObject == null)
                     {
-                        foreach (var child in m_Children)
+                        DrawChildren();
+                        return;
+                    }
+
+                    var count = m_Components.Count;
+                    if (count > 0)
+                    {
+                        EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
+                        m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, string.Format("Components: {0}", count));
+                        if (m_ShowComponents)
                         {
-                            // Check for null in case  of destroyed object
-                            if (child.GameObject)
-                                child.Draw(window, child.m_GameObject.name);
+                            using (new EditorGUI.IndentLevelScope())
+                            {
+                                foreach (var component in m_Components)
+                                {
+                                    component.Draw(window);
+                                }
+                            }
                         }
                     }
-                    else
-                    {
-                        if (m_Components.Count > 0)
-                        {
-                            EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
-                            m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, "Components");
-                            if (m_ShowComponents)
-                            {
-                                using (new EditorGUI.IndentLevelScope())
-                                {
-                                    foreach (var component in m_Components)
-                                    {
-                                        component.Draw(window);
-                                    }
-                                }
-                            }
 
-                            if (m_Children.Count > 0)
-                            {
-                                m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, "Children");
-                                if (m_ShowChildren)
-                                {
-                                    using (new EditorGUI.IndentLevelScope())
-                                    {
-                                        foreach (var child in m_Children)
-                                        {
-                                            // Check for null in case  of destroyed object
-                                            if (child.m_GameObject)
-                                                child.Draw(window, child.m_GameObject.name);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        else if (m_Children.Count > 0)
+                    count = m_Children.Count;
+                    if (count > 0)
+                    {
+                        m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, string.Format("Children: {0}", count));
+                        if (m_ShowChildren)
                         {
-                            foreach (var child in m_Children)
+                            using (new EditorGUI.IndentLevelScope())
                             {
-                                // Check for null in case  of destroyed object
-                                if (child.m_GameObject)
-                                    child.Draw(window, child.m_GameObject.name);
+                                DrawChildren();
                             }
                         }
                     }
                 }
+
+                void DrawChildren()
+                {
+                    foreach (var child in m_Children)
+                    {
+                        var childObject = child.m_GameObject;
+
+                        // Check for null in case  of destroyed object
+                        if (childObject)
+                            child.Draw(window);
+                    }
+                }
             }
 
+            /// <summary>
+            /// Set the visibility state of this object and all of its children
+            /// </summary>
+            /// <param name="visible">Whether this object and its children should be visible in the GUI</param>
             public void SetVisibleRecursively(bool visible)
             {
                 m_Visible = visible;
@@ -211,6 +245,7 @@ namespace Unity.Labs.SuperScience
 
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
 
+        // TODO: use Styles class
         GUIStyle m_MissingScriptStyle;
         bool m_FindMissingMethods = true;
 
@@ -227,6 +262,9 @@ namespace Unity.Labs.SuperScience
             EditorSceneManager.activeSceneChangedInEditMode -= OnActiveSceneChangedInEditMode;
         }
 
+        /// <summary>
+        /// Clear this window's cache of missing references
+        /// </summary>
         protected abstract void Clear();
 
         /// <summary>
@@ -251,7 +289,7 @@ namespace Unity.Labs.SuperScience
         /// <param name="obj">The UnityObject to be scanned</param>
         /// <param name="properties">A list to which properties with missing references will be added</param>
         /// <returns>True if the object has any missing references</returns>
-        public void CheckForMissingRefs(UnityObject obj, List<SerializedProperty> properties)
+        public void CheckForMissingReferences(UnityObject obj, List<SerializedProperty> properties)
         {
             if (obj == null)
                 return;
@@ -259,14 +297,14 @@ namespace Unity.Labs.SuperScience
             var so = GetSerializedObjectForUnityObject(obj);
 
             var property = so.GetIterator();
-            while (property.NextVisible(true))
+            while (property.NextVisible(true)) // enterChildren = true to scan all properties
             {
-                if (CheckForMissingRefs(so, property))
-                    properties.Add(property.Copy());
+                if (CheckForMissingReferences(property))
+                    properties.Add(property.Copy()); // Use a copy of this property because we are iterating on it
             }
         }
 
-        bool CheckForMissingRefs(SerializedObject so, SerializedProperty property)
+        bool CheckForMissingReferences(SerializedProperty property)
         {
             var propertyPath = property.propertyPath;
             switch (property.propertyType)
@@ -275,6 +313,7 @@ namespace Unity.Labs.SuperScience
                     if (!m_FindMissingMethods)
                         return false;
 
+                    // Property paths matching a particular pattern will contain serialized UnityEvent references
                     if (propertyPath.Contains(k_PersistentCallsSearchString))
                     {
                         var targetProperty = property.FindPropertyRelative(k_TargetPropertyName);
@@ -282,12 +321,16 @@ namespace Unity.Labs.SuperScience
 
                         if (targetProperty != null && methodProperty != null)
                         {
+                            // If the target reference is missing, we can't search for methods and we must return false
+                            // to avoid false positives. If this is a missing reference it will be caught below
                             if (targetProperty.objectReferenceValue == null)
                                 return false;
 
                             var type = targetProperty.objectReferenceValue.GetType();
                             try
                             {
+                                // If the method is not set, it is missing, but we may still want to report it
+                                // TODO: add unset method option
                                 if (!type.GetMethods().Any(info => info.Name == methodProperty.stringValue))
                                     return true;
                             }
@@ -329,6 +372,28 @@ namespace Unity.Labs.SuperScience
             }
 
             return so;
+        }
+
+        /// <summary>
+        /// Draw the missing references UI for a list of properties known to have missing references
+        /// </summary>
+        /// <param name="properties">A list of SerializedProperty objects known to have missing references</param>
+        internal static void DrawPropertiesWithMissingReferences(List<SerializedProperty> properties)
+        {
+            foreach (var property in properties)
+            {
+                switch (property.propertyType)
+                {
+                    // The only way a generic property could be in the list of missing properties is if it
+                    // is a serialized UnityEvent with its method missing
+                    case SerializedPropertyType.Generic:
+                        EditorGUILayout.LabelField(string.Format("Missing Method: {0}", property.propertyPath));
+                        break;
+                    case SerializedPropertyType.ObjectReference:
+                        EditorGUILayout.PropertyField(property, new GUIContent(property.propertyPath));
+                        break;
+                }
+            }
         }
     }
 }
