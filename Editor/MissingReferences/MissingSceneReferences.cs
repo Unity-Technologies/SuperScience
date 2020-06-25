@@ -8,8 +8,8 @@ namespace Unity.Labs.SuperScience
 {
     sealed class MissingSceneReferences : MissingReferencesWindow
     {
-        const string k_Instructions = "Click the Refresh button to scan the active scene for missing references. WARNING: " +
-            "For large scenes, this may take a long time and/or crash the Editor.";
+        const string k_Instructions = "Click the Refresh button to scan the active scene for missing references. " +
+            "WARNING: For large scenes, this may take a long time and/or crash the Editor.";
 
         const string k_NoMissingReferences = "No missing references in active scene";
 

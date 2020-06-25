@@ -240,11 +240,24 @@ namespace Unity.Labs.SuperScience
 
         static class Styles
         {
+            const string k_IncludeEmptyEventsLabel = "Include Empty Events";
+            const string k_IncludeEmptyEventsTooltip = "While scanning properties for missing references, include serialized UnityEvent references which do not have a target object. Missing references to target objects will be included whether or not this is set.";
+            const string k_IncludeMissingMethodsLabel = "Include Missing Methods";
+            const string k_IncludeMissingMethodsTooltip = "While scanning properties for missing references, include serialized UnityEvent references which specify methods that do not exist";
+            const string k_IncludeUnsetMethodsLabel = "Include Unset Methods";
+            const string k_IncludeUnsetMethodsTooltip = "While scanning properties for missing references, include serialized UnityEvent references which do not specify a method";
+
             public static GUIStyle RichTextStyle;
+            public static GUIContent IncludeEmptyEventsContent;
+            public static GUIContent IncludeMissingMethodsContent;
+            public static GUIContent IncludeUnsetMethodsContent;
 
             static Styles()
             {
                 RichTextStyle = new GUIStyle { richText = true };
+                IncludeEmptyEventsContent = new GUIContent(k_IncludeEmptyEventsLabel, k_IncludeEmptyEventsTooltip);
+                IncludeMissingMethodsContent = new GUIContent(k_IncludeMissingMethodsLabel, k_IncludeMissingMethodsTooltip);
+                IncludeUnsetMethodsContent = new GUIContent(k_IncludeUnsetMethodsLabel, k_IncludeUnsetMethodsTooltip);
             }
         }
 
@@ -255,7 +268,9 @@ namespace Unity.Labs.SuperScience
 
         readonly Dictionary<UnityObject, SerializedObject> m_SerializedObjects = new Dictionary<UnityObject, SerializedObject>();
 
-        bool m_FindMissingMethods = true;
+        bool m_IncludeEmptyEvents = true;
+        bool m_IncludeMissingMethods = true;
+        bool m_IncludeUnsetMethods = true;
 
         void OnEnable()
         {
@@ -285,7 +300,9 @@ namespace Unity.Labs.SuperScience
         protected virtual void OnGUI()
         {
             EditorGUIUtility.labelWidth = position.width * k_LabelWidthRatio;
-            m_FindMissingMethods = EditorGUILayout.Toggle("Find Missing Methods", m_FindMissingMethods);
+            m_IncludeEmptyEvents = EditorGUILayout.Toggle(Styles.IncludeEmptyEventsContent, m_IncludeEmptyEvents);
+            m_IncludeMissingMethods = EditorGUILayout.Toggle(Styles.IncludeMissingMethodsContent, m_IncludeMissingMethods);
+            m_IncludeUnsetMethods = EditorGUILayout.Toggle(Styles.IncludeUnsetMethodsContent, m_IncludeUnsetMethods);
             if (GUILayout.Button("Refresh"))
                 Scan();
         }
@@ -317,34 +334,51 @@ namespace Unity.Labs.SuperScience
             switch (property.propertyType)
             {
                 case SerializedPropertyType.Generic:
-                    if (!m_FindMissingMethods)
+                    if (!m_IncludeEmptyEvents && !m_IncludeMissingMethods && !m_IncludeUnsetMethods)
                         return false;
 
                     // Property paths matching a particular pattern will contain serialized UnityEvent references
                     if (propertyPath.Contains(k_PersistentCallsSearchString))
                     {
+                        // UnityEvent properties contain a target object and a method name
                         var targetProperty = property.FindPropertyRelative(k_TargetPropertyName);
                         var methodProperty = property.FindPropertyRelative(k_MethodNamePropertyName);
 
                         if (targetProperty != null && methodProperty != null)
                         {
-                            // If the target reference is missing, we can't search for methods and we must return false
-                            // to avoid false positives. If this is a missing reference it will be caught below
+                            // If the target reference is missing, we can't search for methods. If the user has chosen
+                            // to include empty events, we return true, otherwise we must ignore this event.
                             if (targetProperty.objectReferenceValue == null)
-                                return false;
+                            {
+                                // If the target is a missing reference it will be caught below
+                                if (property.objectReferenceInstanceIDValue != 0)
+                                    return false;
 
-                            var type = targetProperty.objectReferenceValue.GetType();
-                            try
-                            {
-                                // If the method is not set, it is missing, but we may still want to report it
-                                // TODO: add unset method option
-                                if (!type.GetMethods().Any(info => info.Name == methodProperty.stringValue))
-                                    return true;
+                                return m_IncludeEmptyEvents;
                             }
-                            catch (Exception e)
+
+                            var methodName = methodProperty.stringValue;
+                            // Include if the method name is empty and the user has chosen to include unset methods
+                            if (string.IsNullOrEmpty(methodName))
+                                return m_IncludeUnsetMethods;
+
+                            if (m_IncludeMissingMethods)
                             {
-                                Debug.LogException(e);
-                                return true;
+                                // If the user has chosen to include missing methods, check if the target object type
+                                // for public methods with the same name as the value of the method property
+                                var type = targetProperty.objectReferenceValue.GetType();
+                                try
+                                {
+                                    if (!type.GetMethods().Any(info => info.Name == methodName))
+                                        return true;
+                                }
+                                catch (Exception e)
+                                {
+                                    Debug.LogException(e);
+
+                                    // Treat reflection errors as missing methods
+                                    return true;
+                                }
                             }
                         }
                     }
