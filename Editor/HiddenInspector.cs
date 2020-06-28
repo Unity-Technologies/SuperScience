@@ -8,7 +8,31 @@ namespace Unity.Labs.SuperScience
 {
     public class HiddenInspector : EditorWindow
     {
+        static class Styles
+        {
+            public static readonly GUIStyle BoldFoldout;
+            public static readonly GUIStyle RichBoldLabel;
+
+            static Styles()
+            {
+                BoldFoldout = new GUIStyle(EditorStyles.foldout)
+                {
+                    fontStyle = FontStyle.Bold
+                };
+
+                RichBoldLabel = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    richText = true
+                };
+            }
+        }
+
         const string k_ShowHiddenPropertiesLabel = "Show Hidden Properties";
+        const string k_MissingScriptLabel = "<color=red>Missing Script</color>";
+        const float k_DestroyButtonWidth = 60f;
+        const string k_DestroyButtonLabel = "Destroy";
+        const string k_HideFlagsLabel = "Hide Flags";
+
 #if !UNITY_2019_1_OR_NEWER
         SerializedProperty m_ComponentProperty;
 #endif
@@ -95,7 +119,7 @@ namespace Unity.Labs.SuperScience
                 var isTransform = false;
                 if (drawTarget == null)
                 {
-                    EditorGUILayout.LabelField("Missing Component");
+                    EditorGUILayout.LabelField(k_MissingScriptLabel, Styles.RichBoldLabel);
                 }
                 else
                 {
@@ -105,18 +129,26 @@ namespace Unity.Labs.SuperScience
                         m_ObjectsExpanded[drawTarget] = true;
                     }
 
+                    var type = drawTarget.GetType();
+                    isTransform = type == typeof(Transform);
+                    
                     var wasExpanded = expanded;
-                    var componentType = drawTarget.GetType();
-                    isTransform = componentType == typeof(Transform);
-                    expanded = EditorGUILayout.Foldout(expanded, componentType.ToString(), true);
+                    expanded = EditorGUILayout.Foldout(expanded, type.ToString(), true, Styles.BoldFoldout);
                     if (wasExpanded != expanded)
                         m_ObjectsExpanded[drawTarget] = expanded;
                 }
 
                 using (new EditorGUI.DisabledScope(isTransform))
                 {
-                    if (GUILayout.Button("Destroy", GUILayout.Width(80)))
+                    if (GUILayout.Button(k_DestroyButtonLabel, GUILayout.Width(k_DestroyButtonWidth)))
                     {
+                        // If we are drawing the GameObject's properties, skip remove component logic
+                        if (drawTarget == inspectorTarget)
+                        {
+                            Undo.DestroyObjectImmediate(drawTarget);
+                            return;
+                        }
+
 #if UNITY_2019_1_OR_NEWER
                         // Unity 2019.1 introduced a special method for removing missing scripts
                         if (drawTarget == null)
@@ -124,14 +156,14 @@ namespace Unity.Labs.SuperScience
                         else
                             Undo.DestroyObjectImmediate(drawTarget);
 #else
-                                // In older versions of Unity, this method will remove missing scripts and regular components
-                                m_ComponentProperty.DeleteArrayElementAtIndex(i);
+                        // In older versions of Unity, this method will remove missing scripts and regular components
+                        m_ComponentProperty.DeleteArrayElementAtIndex(i);
 
-                                m_SerializedObject.ApplyModifiedProperties();
-                                EditorSceneManager.MarkAllScenesDirty();
+                        m_SerializedObject.ApplyModifiedProperties();
+                        EditorSceneManager.MarkAllScenesDirty();
 #endif
 
-                        // Early-out so that we don't try to draw this component
+                        // Early-out so that we don't try to draw the object we just destroyed
                         return;
                     }
                 }
@@ -139,24 +171,25 @@ namespace Unity.Labs.SuperScience
 
             if (expanded)
             {
-                SerializedObject componentSerializedObject;
-                if (!m_SerializedObjects.TryGetValue(drawTarget, out componentSerializedObject))
+                // Cache SerializedObjects to avoid heap churn
+                SerializedObject serializedObject;
+                if (!m_SerializedObjects.TryGetValue(drawTarget, out serializedObject))
                 {
-                    componentSerializedObject = new SerializedObject(drawTarget);
-                    m_SerializedObjects[drawTarget] = componentSerializedObject;
+                    serializedObject = new SerializedObject(drawTarget);
+                    m_SerializedObjects[drawTarget] = serializedObject;
                 }
 
-                componentSerializedObject.Update();
+                serializedObject.Update();
 
                 using (new EditorGUI.IndentLevelScope())
                 {
-                    var property = componentSerializedObject.GetIterator();
+                    var property = serializedObject.GetIterator();
                     property.Next(true);
                     using (var check = new EditorGUI.ChangeCheckScope())
                     {
                         if (m_ShowHiddenProperties)
                         {
-                            drawTarget.hideFlags = (HideFlags)EditorGUILayout.EnumFlagsField("Hide Flags", drawTarget.hideFlags);
+                            drawTarget.hideFlags = (HideFlags)EditorGUILayout.EnumFlagsField(k_HideFlagsLabel, drawTarget.hideFlags);
                             while (property.Next(false))
                             {
                                 EditorGUILayout.PropertyField(property, true);
@@ -171,7 +204,7 @@ namespace Unity.Labs.SuperScience
                         }
 
                         if (check.changed)
-                            componentSerializedObject.ApplyModifiedProperties();
+                            serializedObject.ApplyModifiedProperties();
                     }
                 }
 
