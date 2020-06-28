@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -68,7 +69,7 @@ namespace Unity.Labs.SuperScience
         const string k_FreeGameobjectsLabel = "Free GameObjects";
         const string k_RefreshButtonLabel = "Refresh";
         const string k_AutoUpdateFieldLabel = "Auto Update";
-        const string k_PreviewSceneLabel = "Preview Scene";
+        const string k_PreviewSceneLabelFormat = "(Preview) {0}";
         const string k_UntitledSceneName = "Untitled";
         const int k_RefreshButtonWidth = 50;
 
@@ -86,7 +87,7 @@ namespace Unity.Labs.SuperScience
         readonly List<GameObject> m_FreeGameObjects = new List<GameObject>();
 
         // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
-        static readonly Dictionary<string, List<GameObject>> k_GameObjectScenePathMap = new Dictionary<string, List<GameObject>>();
+        static readonly Dictionary<Scene, List<GameObject>> k_SceneGameObjectMap = new Dictionary<Scene, List<GameObject>>();
 
         [MenuItem("Window/SuperScience/HiddenHierarchy")]
         static void OnMenuItem()
@@ -107,8 +108,8 @@ namespace Unity.Labs.SuperScience
             var gameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
             var sceneCount = SceneManager.sceneCount;
 
-            // Set up a dictionary to map scene path -> gameobject for faster lookup below
-            k_GameObjectScenePathMap.Clear();
+            // Set up a dictionary to map scene -> gameobject for faster lookup below
+            k_SceneGameObjectMap.Clear();
             m_FreeGameObjects.Clear();
             foreach (var gameObject in gameObjects)
             {
@@ -126,18 +127,18 @@ namespace Unity.Labs.SuperScience
                     continue;
                 }
 
-                var scenePath = scene.path;
-                if (!k_GameObjectScenePathMap.TryGetValue(scenePath, out var list))
+                var sceneHandle = scene.handle;
+                if (!k_SceneGameObjectMap.TryGetValue(scene, out var list))
                 {
                     list = new List<GameObject>();
-                    k_GameObjectScenePathMap[scenePath] = list;
+                    k_SceneGameObjectMap[scene] = list;
                 }
 
                 list.Add(gameObject);
             }
 
             // Sort by sibling index so that order matches actual hierarchy
-            foreach (var kvp in k_GameObjectScenePathMap)
+            foreach (var kvp in k_SceneGameObjectMap)
             {
                 kvp.Value.Sort((a, b) => a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
             }
@@ -150,8 +151,11 @@ namespace Unity.Labs.SuperScience
                 if (!scene.IsValid())
                     continue;
 
-                if (!k_GameObjectScenePathMap.TryGetValue(scene.path, out var list))
+                var sceneHandle = scene.handle;
+                if (!k_SceneGameObjectMap.TryGetValue(scene, out var list))
                     continue;
+
+                k_SceneGameObjectMap.Remove(scene);
 
                 var sceneName = scene.name;
 
@@ -162,9 +166,15 @@ namespace Unity.Labs.SuperScience
                 m_RootObjectLists.Add(new KeyValuePair<string, List<GameObject>>(sceneName, list));
             }
 
-            // Objects in a valid scene with no path are in the Preview Scene
-            if (k_GameObjectScenePathMap.TryGetValue(string.Empty, out var previewObjects))
-                m_RootObjectLists.Add(new KeyValuePair<string, List<GameObject>>(k_PreviewSceneLabel, previewObjects));
+            foreach (var kvp in k_SceneGameObjectMap)
+            {
+                var scene = kvp.Key;
+                var label = scene.name;
+                if (EditorSceneManager.IsPreviewScene(scene))
+                    label = string.Format(k_PreviewSceneLabelFormat, label);
+
+                m_RootObjectLists.Add(new KeyValuePair<string, List<GameObject>>(label, kvp.Value));
+            }
         }
 
         void OnGUI()
@@ -247,11 +257,10 @@ namespace Unity.Labs.SuperScience
                         if (GUILayout.Button(string.Empty, style))
                         {
                             expanded = !expanded;
+                            m_GameObjectExpandedStates[gameObject] = expanded;
                             if (Event.current.alt)
                                 SetExpandedRecursively(gameObject, expanded);
                         }
-
-                        m_GameObjectExpandedStates[gameObject] = expanded;
                     }
                     else
                     {
