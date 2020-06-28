@@ -23,7 +23,6 @@ namespace Unity.Labs.SuperScience
         bool m_Scanned;
 
         Vector2 m_ScrollPosition;
-        bool m_ShowGameObjects;
         readonly List<KeyValuePair<string, GameObjectContainer>> m_SceneRoots = new List<KeyValuePair<string, GameObjectContainer>>();
 
         [MenuItem("Window/SuperScience/Missing Scene References")]

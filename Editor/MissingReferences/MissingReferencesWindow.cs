@@ -26,6 +26,8 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             class ComponentContainer
             {
+                const string k_MissingScriptLabel = "<color=red>Missing Script!</color>";
+
                 readonly Component m_Component;
                 public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
@@ -53,7 +55,7 @@ namespace Unity.Labs.SuperScience
                         // If the component equates to null, it is an empty scripting wrapper, indicating a missing script
                         if (m_Component == null)
                         {
-                            EditorGUILayout.LabelField("<color=red>Missing Script!</color>", Styles.RichTextLabel);
+                            EditorGUILayout.LabelField(k_MissingScriptLabel, Styles.RichTextLabel);
                             return;
                         }
 
@@ -61,6 +63,13 @@ namespace Unity.Labs.SuperScience
                     }
                 }
             }
+
+            const int k_PingButtonWidth = 35;
+            const string k_PingButtonLabel = "Ping";
+            const string k_MissingPrefabLabelFormat = "<color=red>{0} - Missing Prefab</color>";
+            const string k_LabelFormat = "{0}: {1}";
+            const string k_ComponentsGroupLabelFormat = "Components: {0}";
+            const string k_ChildrenGroupLabelFormat = "Children: {0}";
 
             readonly GameObject m_GameObject;
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
@@ -132,7 +141,10 @@ namespace Unity.Labs.SuperScience
 
                 var isMissingPrefab = child.m_IsMissingPrefab;
                 if (isMissingPrefab)
+                {
+                    m_MissingReferencesInChildren++;
                     Count++;
+                }
 
                 if (childCount > 0 || isMissingPrefab)
                     m_Children.Add(child);
@@ -144,14 +156,20 @@ namespace Unity.Labs.SuperScience
             internal void Draw(string name)
             {
                 var wasVisible = m_Visible;
-                var label = string.Format("{0}: {1}", name, Count);
+                var label = string.Format(k_LabelFormat, name, Count);
                 if (m_IsMissingPrefab)
-                    label = string.Format("<color=red>{0} - Missing Prefab</color>", label);
+                    label = string.Format(k_MissingPrefabLabelFormat, label);
 
                 // If this object has 0 missing references but is being drawn, it is a missing prefab with no overrides
                 if (Count == 0)
                 {
-                    EditorGUILayout.LabelField(label, Styles.RichTextLabel);
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField(label, Styles.RichTextLabel);
+                        if (GUILayout.Button(k_PingButtonLabel, GUILayout.Width(k_PingButtonWidth)))
+                            EditorGUIUtility.PingObject(m_GameObject);
+                    }
+
                     return;
                 }
 
@@ -176,7 +194,7 @@ namespace Unity.Labs.SuperScience
                     if (m_MissingReferencesInComponents > 0)
                     {
                         EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
-                        label = string.Format("Components: {0}", m_MissingReferencesInComponents);
+                        label = string.Format(k_ComponentsGroupLabelFormat, m_MissingReferencesInComponents);
                         m_ShowComponents = EditorGUILayout.Foldout(m_ShowComponents, label, true);
                         if (m_ShowComponents)
                         {
@@ -192,7 +210,7 @@ namespace Unity.Labs.SuperScience
 
                     if (m_MissingReferencesInChildren > 0)
                     {
-                        label = string.Format("Children: {0}", m_MissingReferencesInChildren);
+                        label = string.Format(k_ChildrenGroupLabelFormat, m_MissingReferencesInChildren);
                         m_ShowChildren = EditorGUILayout.Foldout(m_ShowChildren, label, true);
                         if (m_ShowChildren)
                         {
