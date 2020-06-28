@@ -8,14 +8,54 @@ namespace Unity.Labs.SuperScience
 {
     public class HiddenHierarchy : EditorWindow
     {
+        static class Styles
+        {
+            const float k_RowHeight = 16f;
+            public static readonly GUIStyle SceneFoldout;
+            public static readonly GUIStyle ClickableFoldout;
+            public static readonly GUIStyle ClickableFoldoutButton;
+            public static readonly GUIStyle ClickableLabel;
+
+            static Styles()
+            {
+                SceneFoldout = new GUIStyle(EditorStyles.foldout)
+                {
+                    fontStyle = FontStyle.Bold
+                };
+
+                ClickableFoldoutButton = new GUIStyle(EditorStyles.label)
+                {
+                    padding = new RectOffset(-41, 1, 2, -2),
+                    fixedHeight = k_RowHeight
+                };
+
+                ClickableFoldout = new GUIStyle(EditorStyles.foldout)
+                {
+                    stretchWidth = false,
+                    fixedHeight = k_RowHeight
+                };
+
+                ClickableLabel = new GUIStyle(EditorStyles.label)
+                {
+                    fixedHeight = k_RowHeight
+                };
+            }
+        }
+
         const float k_Indent = 15f;
         const float k_FoldoutArrowSize = 12f;
-        static readonly Dictionary<GameObject, bool> k_FoldoutStates = new Dictionary<GameObject, bool>();
+        const string k_FreeGameobjectsLabel = "Free GameObjects";
 
+        // Fields of SerializedObjects are serialized even if not marked with [SerializedField]
         Vector2 m_ScrollPosition;
         bool m_AutoUpdate = true;
+        List<bool> m_SceneFoldoutStates = new List<bool>();
+        bool m_FreeGameObjectsFoldout = true;
+
+        // Non-serialized state stored here for non-auto-refresh mode
         readonly List<KeyValuePair<string, List<GameObject>>> m_RootObjectLists = new List<KeyValuePair<string, List<GameObject>>>();
         readonly List<GameObject> m_FreeGameObjects = new List<GameObject>();
+        readonly Dictionary<GameObject, bool> m_GameObjectFoldoutStates = new Dictionary<GameObject, bool>();
 
         [MenuItem("Window/SuperScience/HiddenHierarchy")]
         static void OnMenuItem()
@@ -103,10 +143,23 @@ namespace Unity.Labs.SuperScience
             using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
             {
                 m_ScrollPosition = scrollView.scrollPosition;
-                foreach (var kvp in m_RootObjectLists)
+                var rootListCount = m_RootObjectLists.Count;
+
+                // Ensure m_SceneFoldoutStates has enough values; Default to expanded
+                while (m_SceneFoldoutStates.Count < rootListCount)
+                    m_SceneFoldoutStates.Add(true);
+
+                for (var i = 0; i < rootListCount; i++)
                 {
+                    var kvp = m_RootObjectLists[i];
                     var sceneName = kvp.Key;
-                    GUILayout.Label(sceneName, EditorStyles.boldLabel);
+
+                    var foldout = m_SceneFoldoutStates[i];
+                    foldout = EditorGUILayout.Foldout(foldout, sceneName, true, Styles.SceneFoldout);
+                    m_SceneFoldoutStates[i] = foldout;
+
+                    if (!foldout)
+                        continue;
 
                     var rootObjects = kvp.Value;
                     foreach (var go in rootObjects)
@@ -115,7 +168,10 @@ namespace Unity.Labs.SuperScience
                     }
                 }
 
-                GUILayout.Label("Free GameObjects", EditorStyles.boldLabel);
+                m_FreeGameObjectsFoldout = EditorGUILayout.Foldout(m_FreeGameObjectsFoldout, k_FreeGameobjectsLabel, true, Styles.SceneFoldout);
+                if (!m_FreeGameObjectsFoldout)
+                    return;
+
                 foreach (var gameObject in m_FreeGameObjects)
                 {
                     DrawObject(gameObject, k_Indent);
@@ -123,7 +179,7 @@ namespace Unity.Labs.SuperScience
             }
         }
 
-        static void DrawObject(GameObject go, float indent)
+        void DrawObject(GameObject go, float indent)
         {
             if (go == null)
                 return;
@@ -134,21 +190,24 @@ namespace Unity.Labs.SuperScience
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Space(indent);
+                GUIStyle labelStyle;
                 if (transform.childCount > 0)
                 {
-                    k_FoldoutStates.TryGetValue(go, out foldout);
-                    foldout = EditorGUILayout.Foldout(foldout, go.name);
-                    k_FoldoutStates[go] = foldout;
+                    m_GameObjectFoldoutStates.TryGetValue(go, out foldout);
+                    foldout = EditorGUILayout.Foldout(foldout, string.Empty, false, Styles.ClickableFoldout);
+                    m_GameObjectFoldoutStates[go] = foldout;
 
-                    if (GUILayout.Button("Select", GUILayout.Width(50)))
-                        Selection.activeObject = go;
+                    labelStyle = Styles.ClickableFoldoutButton;
                 }
                 else
                 {
                     GUILayout.Space(k_FoldoutArrowSize);
-                    if (GUILayout.Button(go.name, GUIStyle.none))
-                        Selection.activeObject = go;
+                    labelStyle = Styles.ClickableLabel;
                 }
+
+                var content = new GUIContent(go.name, AssetPreview.GetMiniThumbnail(go));
+                if (GUILayout.Button(content, labelStyle))
+                    Selection.activeObject = go;
             }
 
             if (!foldout)
