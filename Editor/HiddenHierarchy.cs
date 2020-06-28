@@ -127,7 +127,6 @@ namespace Unity.Labs.SuperScience
                     continue;
                 }
 
-                var sceneHandle = scene.handle;
                 if (!k_SceneGameObjectMap.TryGetValue(scene, out var list))
                 {
                     list = new List<GameObject>();
@@ -151,7 +150,6 @@ namespace Unity.Labs.SuperScience
                 if (!scene.IsValid())
                     continue;
 
-                var sceneHandle = scene.handle;
                 if (!k_SceneGameObjectMap.TryGetValue(scene, out var list))
                     continue;
 
