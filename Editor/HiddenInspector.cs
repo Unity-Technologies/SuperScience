@@ -10,14 +10,22 @@ namespace Unity.Labs.SuperScience
     {
         static class Styles
         {
-            public static readonly GUIStyle BoldFoldout;
+            public static readonly GUIStyle EmptyFoldout;
+            public static readonly GUIStyle OverlapFoldout;
             public static readonly GUIStyle RichBoldLabel;
 
             static Styles()
             {
-                BoldFoldout = new GUIStyle(EditorStyles.foldout)
+                EmptyFoldout = new GUIStyle(EditorStyles.foldout)
                 {
-                    fontStyle = FontStyle.Bold
+                    stretchWidth = false
+                };
+
+                OverlapFoldout = new GUIStyle(EditorStyles.boldLabel)
+                {
+                    // Empty foldouts include a 40-pixel label which we want this button to overlap
+                    padding = new RectOffset(-40, 0, 0, 0),
+                    fixedHeight = 16f
                 };
 
                 RichBoldLabel = new GUIStyle(EditorStyles.boldLabel)
@@ -133,7 +141,11 @@ namespace Unity.Labs.SuperScience
                     isTransform = type == typeof(Transform);
 
                     var wasExpanded = expanded;
-                    expanded = EditorGUILayout.Foldout(expanded, type.ToString(), true, Styles.BoldFoldout);
+                    expanded = EditorGUILayout.Foldout(expanded, string.Empty, true, Styles.EmptyFoldout);
+                    var content = new GUIContent(type.ToString(), AssetPreview.GetMiniTypeThumbnail(type));
+                    if (GUILayout.Button(content, Styles.OverlapFoldout))
+                        expanded = !expanded;
+
                     if (wasExpanded != expanded)
                         m_ObjectsExpanded[drawTarget] = expanded;
                 }
