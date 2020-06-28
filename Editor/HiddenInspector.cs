@@ -131,7 +131,7 @@ namespace Unity.Labs.SuperScience
 
                     var type = drawTarget.GetType();
                     isTransform = type == typeof(Transform);
-                    
+
                     var wasExpanded = expanded;
                     expanded = EditorGUILayout.Foldout(expanded, type.ToString(), true, Styles.BoldFoldout);
                     if (wasExpanded != expanded)
