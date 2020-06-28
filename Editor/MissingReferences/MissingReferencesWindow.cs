@@ -242,11 +242,11 @@ namespace Unity.Labs.SuperScience
             const string k_IncludeUnsetMethodsLabel = "Include Unset Methods";
             const string k_IncludeUnsetMethodsTooltip = "While scanning properties for missing references, include serialized UnityEvent references which do not specify a method";
 
-            public static GUIStyle RichTextFoldout;
-            public static GUIStyle RichTextLabel;
-            public static GUIContent IncludeEmptyEventsContent;
-            public static GUIContent IncludeMissingMethodsContent;
-            public static GUIContent IncludeUnsetMethodsContent;
+            public static readonly GUIStyle RichTextFoldout;
+            public static readonly GUIStyle RichTextLabel;
+            public static readonly GUIContent IncludeEmptyEventsContent;
+            public static readonly GUIContent IncludeMissingMethodsContent;
+            public static readonly GUIContent IncludeUnsetMethodsContent;
 
             static Styles()
             {
