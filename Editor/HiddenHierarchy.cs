@@ -76,7 +76,7 @@ namespace Unity.Labs.SuperScience
         Vector2 m_ScrollPosition;
         bool m_AutoUpdate = true;
         List<bool> m_SceneFoldoutStates = new List<bool>();
-        bool m_FreeGameObjectsFoldout = true;
+        bool m_FreeGameObjectsExpanded = true;
 
         // Dictionary cannot not be serialized, so foldout states will not survive domain reload
         readonly Dictionary<GameObject, bool> m_GameObjectExpandedStates = new Dictionary<GameObject, bool>();
@@ -84,6 +84,7 @@ namespace Unity.Labs.SuperScience
         // Non-serialized state stored here for non-auto-refresh mode
         readonly List<KeyValuePair<string, List<GameObject>>> m_RootObjectLists = new List<KeyValuePair<string, List<GameObject>>>();
         readonly List<GameObject> m_FreeGameObjects = new List<GameObject>();
+        readonly Dictionary<GameObject, List<GameObject>> m_GameObjectToList = new Dictionary<GameObject, List<GameObject>>();
 
         // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
         static readonly Dictionary<string, List<GameObject>> k_GameObjectScenePathMap = new Dictionary<string, List<GameObject>>();
@@ -121,7 +122,10 @@ namespace Unity.Labs.SuperScience
                 {
                     // If the scene is not valid, and this isn't a prefab, it is a "free floating" GameObject
                     if (!PrefabUtility.IsPartOfPrefabAsset(gameObject))
+                    {
+                        m_GameObjectToList[gameObject] = m_FreeGameObjects;
                         m_FreeGameObjects.Add(gameObject);
+                    }
 
                     continue;
                 }
@@ -133,6 +137,7 @@ namespace Unity.Labs.SuperScience
                     k_GameObjectScenePathMap[scenePath] = list;
                 }
 
+                m_GameObjectToList[gameObject] = list;
                 list.Add(gameObject);
             }
 
@@ -169,6 +174,8 @@ namespace Unity.Labs.SuperScience
 
         void OnGUI()
         {
+            HandleKeyboardInput();
+
             using (new GUILayout.HorizontalScope())
             {
                 m_AutoUpdate = EditorGUILayout.Toggle(k_AutoUpdateFieldLabel, m_AutoUpdate);
@@ -196,23 +203,44 @@ namespace Unity.Labs.SuperScience
                 {
                     var kvp = m_RootObjectLists[i];
                     var sceneName = kvp.Key;
-
-                    var foldout = m_SceneFoldoutStates[i];
-                    foldout = EditorGUILayout.Foldout(foldout, sceneName, true, Styles.SceneFoldout);
-                    m_SceneFoldoutStates[i] = foldout;
-
-                    if (!foldout)
-                        continue;
-
                     var rootObjects = kvp.Value;
+                    using (var change = new EditorGUI.ChangeCheckScope())
+                    {
+                        var foldout = m_SceneFoldoutStates[i];
+                        foldout = EditorGUILayout.Foldout(foldout, sceneName, true, Styles.SceneFoldout);
+                        m_SceneFoldoutStates[i] = foldout;
+
+                        if (change.changed && Event.current.alt)
+                        {
+                            foreach (var gameObject in rootObjects)
+                            {
+                                SetExpandedRecursively(gameObject, foldout);
+                            }
+                        }
+
+                        if (!foldout)
+                            continue;
+                    }
+
                     foreach (var go in rootObjects)
                     {
                         DrawObject(go, k_Indent);
                     }
                 }
 
-                m_FreeGameObjectsFoldout = EditorGUILayout.Foldout(m_FreeGameObjectsFoldout, k_FreeGameobjectsLabel, true, Styles.SceneFoldout);
-                if (!m_FreeGameObjectsFoldout)
+                using (var change = new EditorGUI.ChangeCheckScope())
+                {
+                    m_FreeGameObjectsExpanded = EditorGUILayout.Foldout(m_FreeGameObjectsExpanded, k_FreeGameobjectsLabel, true, Styles.SceneFoldout);
+                    if (change.changed && Event.current.alt)
+                    {
+                        foreach (var gameObject in m_FreeGameObjects)
+                        {
+                            SetExpandedRecursively(gameObject, m_FreeGameObjectsExpanded);
+                        }
+                    }
+                }
+
+                if (!m_FreeGameObjectsExpanded)
                     return;
 
                 foreach (var gameObject in m_FreeGameObjects)
@@ -220,6 +248,159 @@ namespace Unity.Labs.SuperScience
                     DrawObject(gameObject, k_Indent);
                 }
             }
+        }
+
+        void HandleKeyboardInput()
+        {
+            var current = Event.current;
+            if (current.type != EventType.KeyDown)
+                return;
+
+            switch (current.keyCode)
+            {
+                case KeyCode.LeftArrow:
+                    if (current.alt)
+                    {
+                        foreach (var gameObject in Selection.gameObjects)
+                        {
+                            SetExpandedRecursively(gameObject, false);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var gameObject in Selection.gameObjects)
+                        {
+                            m_GameObjectExpandedStates[gameObject] = false;
+                        }
+                    }
+
+                    break;
+                case KeyCode.RightArrow:
+                    if (current.alt)
+                    {
+                        foreach (var gameObject in Selection.gameObjects)
+                        {
+                            SetExpandedRecursively(gameObject, true);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var gameObject in Selection.gameObjects)
+                        {
+                            m_GameObjectExpandedStates[gameObject] = true;
+                        }
+                    }
+
+                    break;
+                case KeyCode.DownArrow:
+                {
+                    var selected = Selection.activeGameObject;
+                    if (selected == null)
+                        return;
+
+                    var selectedTransform = selected.transform;
+                    var childCount = selectedTransform.childCount;
+                    if (childCount > 0 && m_GameObjectExpandedStates.TryGetValue(selected, out var expanded) && expanded)
+                    {
+                        Selection.activeGameObject = selectedTransform.GetChild(0).gameObject;
+                    }
+                    else if (selectedTransform.parent == null)
+                    {
+                        if (!m_GameObjectToList.TryGetValue(selected, out var list))
+                            return;
+
+                        var index = list.IndexOf(selected);
+                        if (index >= 0 && index < list.Count - 1)
+                            Selection.activeGameObject = list[index + 1];
+                    }
+                    else
+                    {
+                        var siblingIndex = selectedTransform.GetSiblingIndex();
+                        var parent = selectedTransform.parent;
+                        if (siblingIndex < parent.childCount - 1)
+                        {
+                            Selection.activeGameObject = parent.GetChild(siblingIndex + 1).gameObject;
+                        }
+                        else if (parent.parent == null)
+                        {
+                            if (!m_GameObjectToList.TryGetValue(parent.gameObject, out var list))
+                                return;
+
+                            var index = list.IndexOf(parent.gameObject);
+                            if (index >= 0 && index < list.Count - 1)
+                                Selection.activeGameObject = list[index + 1];
+                        }
+                        else
+                        {
+                            Debug.Log("sdf");
+                        }
+                    }
+                }
+                    break;
+                case KeyCode.UpArrow:
+                {
+                    var selected = Selection.activeGameObject;
+                    if (selected == null)
+                        return;
+
+                    var selectedTransform = selected.transform;
+                    if (selectedTransform.parent == null)
+                    {
+                        if (!m_GameObjectToList.TryGetValue(selected, out var list))
+                            return;
+
+                        var index = list.IndexOf(selected);
+                        if (index > 0)
+                        {
+                            Selection.activeGameObject = GetLastExpandedChild(list[index - 1]);
+                        }
+                    }
+                    else
+                    {
+                        var siblingIndex = selectedTransform.GetSiblingIndex();
+                        var parent = selectedTransform.parent;
+                        if (parent == null)
+                        {
+
+                        }
+                        else
+                        {
+                            if (siblingIndex == 0)
+                            {
+                                Selection.activeGameObject = parent.gameObject;
+                            }
+                            else
+                            {
+                                if (parent.parent == null)
+                                {
+                                    // if (siblingIndex > 0)
+                                    // {
+                                    //     Selection.activeGameObject = parent.GetChild(siblingIndex - 1).gameObject;
+                                    // }
+
+                                    if (!m_GameObjectToList.TryGetValue(parent.gameObject, out var list))
+                                        return;
+
+                                    var index = list.IndexOf(parent.gameObject);
+                                    if (index >= 0 && index < list.Count - 1)
+                                    {
+                                        Selection.activeGameObject = list[index + 1];
+                                    }
+                                }
+                                else
+                                {
+                                    Debug.Log("sdf");
+                                }
+                            }
+                        }
+                    }
+                }
+                    break;
+                default:
+                    return;
+            }
+
+            Event.current.Use();
         }
 
         void DrawObject(GameObject gameObject, float indent)
@@ -246,6 +427,9 @@ namespace Unity.Labs.SuperScience
                         // the gameobject label and set selection on click
                         if (GUILayout.Button(string.Empty, style))
                         {
+                            // Clear keyboard focus so that scene labels do not get it
+                            GUIUtility.keyboardControl = 0;
+
                             expanded = !expanded;
                             if (Event.current.alt)
                                 SetExpandedRecursively(gameObject, expanded);
@@ -260,7 +444,11 @@ namespace Unity.Labs.SuperScience
 
                     var content = new GUIContent(gameObject.name, AssetPreview.GetMiniThumbnail(gameObject));
                     if (GUILayout.Button(content, Styles.ClickableLabel))
+                    {
+                        // Clear keyboard focus so that scene labels do not get it
+                        GUIUtility.keyboardControl = 0;
                         Selection.activeObject = gameObject;
+                    }
                 }
             }
 
@@ -280,6 +468,38 @@ namespace Unity.Labs.SuperScience
             {
                 SetExpandedRecursively(child.gameObject, expanded);
             }
+        }
+
+        GameObject GetLastExpandedChild(GameObject gameObject)
+        {
+            if (!m_GameObjectExpandedStates.TryGetValue(gameObject, out var expanded) || !expanded)
+                return gameObject;
+
+            GameObject lastExpandedChild = null;
+            foreach (Transform child in gameObject.transform)
+            {
+                var expandedChild = GetLastExpandedChild(child.gameObject);
+                if (expandedChild != null)
+                    lastExpandedChild = expandedChild;
+            }
+
+            return lastExpandedChild;
+        }
+
+        GameObject GetNextExpandedChild(GameObject gameObject)
+        {
+            if (!m_GameObjectExpandedStates.TryGetValue(gameObject, out var expanded) || !expanded)
+                return gameObject;
+
+            GameObject lastExpandedChild = null;
+            foreach (Transform child in gameObject.transform)
+            {
+                var expandedChild = GetLastExpandedChild(child.gameObject);
+                if (expandedChild != null)
+                    lastExpandedChild = expandedChild;
+            }
+
+            return lastExpandedChild;
         }
     }
 }
