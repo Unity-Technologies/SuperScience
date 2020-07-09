@@ -66,7 +66,7 @@ namespace Unity.Labs.SuperScience
 
         const float k_Indent = 15f;
         const float k_FoldoutButtonWidth = 10f;
-        const string k_FreeGameobjectsLabel = "Free GameObjects";
+        const string k_FreeGameObjectsLabel = "Free GameObjects";
         const string k_RefreshButtonLabel = "Refresh";
         const string k_AutoUpdateFieldLabel = "Auto Update";
         const string k_PreviewSceneLabelFormat = "(Preview) {0}";
@@ -108,7 +108,7 @@ namespace Unity.Labs.SuperScience
             var gameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
             var sceneCount = SceneManager.sceneCount;
 
-            // Set up a dictionary to map scene -> gameobject for faster lookup below
+            // Set up a dictionary to map scene -> GameObject for faster lookup below
             k_SceneGameObjectMap.Clear();
             m_FreeGameObjects.Clear();
             foreach (var gameObject in gameObjects)
@@ -219,7 +219,7 @@ namespace Unity.Labs.SuperScience
                     }
                 }
 
-                m_FreeGameObjectsFoldout = EditorGUILayout.Foldout(m_FreeGameObjectsFoldout, k_FreeGameobjectsLabel, true, Styles.SceneFoldout);
+                m_FreeGameObjectsFoldout = EditorGUILayout.Foldout(m_FreeGameObjectsFoldout, k_FreeGameObjectsLabel, true, Styles.SceneFoldout);
                 if (!m_FreeGameObjectsFoldout)
                     return;
 
@@ -251,7 +251,7 @@ namespace Unity.Labs.SuperScience
 
                         // Foldouts without labels take up some minimum width and steal clicks from the label button
                         // We emulate a foldout with a button and custom styles so that we can use a button to display
-                        // the gameobject label and set selection on click
+                        // the GameObject label and set selection on click
                         if (GUILayout.Button(string.Empty, style))
                         {
                             expanded = !expanded;
