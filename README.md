@@ -60,9 +60,14 @@ The reason why we manually set enabled to false when stopping behaviors is to en
 If you want to continuously update your running behaviors while in edit mode (as if in Play mode), click Start/Stop Player Loop. You can try this out in the sample scene. If you start the Cube/Rotator, you will notice that it only updates every other frame, and only while selected. If you click Run Player Loop, you should see the cube smoothly update, regardless of selection.
 
 ## HiddenHierarchy: Find hidden scene objects
-Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for otherr reasons.
+Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for other reasons.
 
-The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes, preview scenes, and "free objects" which exist outside of scenes. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+
+## HiddenInspector: Edit hidden components and properties
+Likewise with hidden GameObjects, some Components may be hidden. The HiddenInspector window displays the currently selected GameObject and its full list of components, including those which are hidden from the normal inspector. Each component (as well as the GameObject's properties) will contain a raw list of properties, similar to the Debug Inpector.
+
+It is possible to show even more properties by enabling Show Hidden Properties. This will show non-visible properties as well as the hideFlags field which can be used to make component or objects visible to the normal hierarchy and inspector, and enable editing on read-only objects. Naturally, this can have detrimental consequences and may have adverse effects on Unity systems. Similarly, destroying hidden objects or components with this view can case errors or adverse effects.
 
 ## ModificationResponse
 This is an example of how to hook into Undo.postprocessModifications and Undo.undoRedoPerformed to respond to property modifications in a Scene.  It uses a short timer that is reset and started when a change is detected, and it only triggers the response when the timer finishes.  This pattern is useful when you have a complex response that you don't want to happen constantly as a continuous property is changed (for example, as a user drags a slider in the Inspector).
