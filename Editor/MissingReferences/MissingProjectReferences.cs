@@ -27,21 +27,49 @@ namespace Unity.Labs.SuperScience
             /// Container for asset scan results. Just as with GameObjectContainer, we initialize one of these
             /// using an asset object to scan it for missing references and retain the results
             /// </summary>
-            class AssetContainer
+            class AssetContainer : MissingReferencesContainer
             {
+                const string k_SubAssetsLabelFormat = "Sub-assets: {0}";
+
                 readonly UnityObject m_Object;
+                bool m_SubAssetsVisible;
+                public readonly List<MissingReferencesContainer> SubAssets = new List<MissingReferencesContainer>();
                 public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
-                public UnityObject UnityObject { get { return m_Object; } }
+                public override UnityObject Object { get { return m_Object; } }
 
                 /// <summary>
                 /// Initialize an AssetContainer to represent the given UnityObject
                 /// This will scan the object for missing references and retain the information for display in
                 /// the given window.
                 /// </summary>
-                /// <param name="unityObject">The UnityObject to scan for missing references</param>
+                /// <param name="unityObject">The main UnityObject for this asset</param>
+                /// <param name="path">The path to this asset, for gathering sub-assets</param>
                 /// <param name="options">User-configurable options for this view</param>
-                public AssetContainer(UnityObject unityObject, Options options)
+                public AssetContainer(UnityObject unityObject, string path, Options options)
+                {
+                    m_Object = unityObject;
+                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
+
+                    // Collect any sub-asset references
+                    foreach (var asset in AssetDatabase.LoadAllAssetRepresentationsAtPath(path))
+                    {
+                        if (asset is GameObject prefab)
+                        {
+                            var gameObjectContainer = new GameObjectContainer(prefab, options);
+                            if (gameObjectContainer.Count > 0)
+                                SubAssets.Add(gameObjectContainer);
+                        }
+                        else
+                        {
+                            var assetContainer = new AssetContainer(asset, options);
+                            if (assetContainer.PropertiesWithMissingReferences.Count > 0)
+                                SubAssets.Add(assetContainer);
+                        }
+                    }
+                }
+
+                AssetContainer(UnityObject unityObject, Options options)
                 {
                     m_Object = unityObject;
                     CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
@@ -50,18 +78,36 @@ namespace Unity.Labs.SuperScience
                 /// <summary>
                 /// Draw the missing references UI for this asset
                 /// </summary>
-                public void Draw()
+                public override void Draw()
                 {
                     using (new EditorGUI.IndentLevelScope())
                     {
                         DrawPropertiesWithMissingReferences(PropertiesWithMissingReferences);
+
+                        var count = SubAssets.Count;
+                        if (count == 0)
+                            return;
+
+                        m_SubAssetsVisible = EditorGUILayout.Foldout(m_SubAssetsVisible, string.Format(k_SubAssetsLabelFormat, count));
+                        if (!m_SubAssetsVisible)
+                            return;
+
+                        foreach (var asset in SubAssets)
+                        {
+                            asset.Draw();
+                        }
                     }
+                }
+
+                public override void SetVisibleRecursively(bool visible)
+                {
+                    m_SubAssetsVisible = visible;
                 }
             }
 
+            const string k_LabelFormat = "{0}: {1}";
             readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
-            readonly List<GameObjectContainer> m_Prefabs = new List<GameObjectContainer>();
-            readonly List<AssetContainer> m_Assets = new List<AssetContainer>();
+            readonly List<MissingReferencesContainer> m_Assets = new List<MissingReferencesContainer>();
             bool m_Visible;
 
             /// <summary>
@@ -75,7 +121,6 @@ namespace Unity.Labs.SuperScience
             public void Clear()
             {
                 m_Subfolders.Clear();
-                m_Prefabs.Clear();
                 m_Assets.Clear();
                 Count = 0;
             }
@@ -87,21 +132,20 @@ namespace Unity.Labs.SuperScience
             /// <param name="options">User-configurable options for this view</param>
             public void AddAssetAtPath(string path, Options options)
             {
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                if (prefab != null)
-                {
-                    if (PrefabUtility.GetPrefabAssetType(prefab) == PrefabAssetType.Model)
-                        return;
+                var asset = AssetDatabase.LoadAssetAtPath<UnityObject>(path);
 
+                // Prefabs are processed differently so that we can scan components and children
+                // Model prefabs may contain materials which we want to scan. The "real prefab" as a sub-asset
+                if (asset is GameObject prefab && PrefabUtility.GetPrefabAssetType(asset) != PrefabAssetType.Model)
+                {
                     var gameObjectContainer = new GameObjectContainer(prefab, options);
                     if (gameObjectContainer.Count > 0)
-                        GetOrCreateFolderForAssetPath(path).m_Prefabs.Add(gameObjectContainer);
+                        GetOrCreateFolderForAssetPath(path).m_Assets.Add(gameObjectContainer);
                 }
                 else
                 {
-                    var asset = AssetDatabase.LoadAssetAtPath<UnityObject>(path);
-                    var assetContainer = new AssetContainer(asset, options);
-                    if (assetContainer.PropertiesWithMissingReferences.Count > 0)
+                    var assetContainer = new AssetContainer(asset, path, options);
+                    if (assetContainer.PropertiesWithMissingReferences.Count > 0 || assetContainer.SubAssets.Count > 0)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(assetContainer);
                 }
             }
@@ -147,7 +191,7 @@ namespace Unity.Labs.SuperScience
             public void Draw(string name)
             {
                 var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format("{0}: {1}", name, Count), true);
+                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format(k_LabelFormat, name, Count), true);
 
                 // Hold alt to apply visibility state to all children (recursively)
                 if (m_Visible != wasVisible && Event.current.alt)
@@ -163,20 +207,14 @@ namespace Unity.Labs.SuperScience
                         kvp.Value.Draw(kvp.Key);
                     }
 
-                    foreach (var prefab in m_Prefabs)
-                    {
-                        var gameObject = prefab.GameObject;
-                        EditorGUILayout.ObjectField(gameObject, typeof(GameObject), false);
-
-                        // Check for null in case  of destroyed object
-                        if (gameObject)
-                            prefab.Draw(gameObject.name);
-                    }
-
                     foreach (var asset in m_Assets)
                     {
-                        EditorGUILayout.ObjectField(asset.UnityObject, typeof(UnityObject), false);
-                        asset.Draw();
+                        var unityObject = asset.Object;
+                        EditorGUILayout.ObjectField(asset.Object, typeof(UnityObject), false);
+
+                        // Check for null in case  of destroyed object
+                        if (unityObject != null)
+                            asset.Draw();
                     }
                 }
             }
@@ -188,9 +226,9 @@ namespace Unity.Labs.SuperScience
             void SetVisibleRecursively(bool visible)
             {
                 m_Visible = visible;
-                foreach (var prefab in m_Prefabs)
+                foreach (var asset in m_Assets)
                 {
-                    prefab.SetVisibleRecursively(visible);
+                    asset.SetVisibleRecursively(visible);
                 }
 
                 foreach (var kvp in m_Subfolders)
@@ -204,8 +242,7 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             public void SortContentsRecursively()
             {
-                m_Assets.Sort((a, b) => a.UnityObject.name.CompareTo(b.UnityObject.name));
-                m_Prefabs.Sort((a, b) => a.GameObject.name.CompareTo(b.GameObject.name));
+                m_Assets.Sort((a, b) => a.Object.name.CompareTo(b.Object.name));
                 foreach (var kvp in m_Subfolders)
                 {
                     kvp.Value.SortContentsRecursively();

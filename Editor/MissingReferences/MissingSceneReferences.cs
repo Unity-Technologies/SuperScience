@@ -95,7 +95,7 @@ namespace Unity.Labs.SuperScience
                     m_ScrollPosition = scrollView.scrollPosition;
                     foreach (var kvp in m_SceneRoots)
                     {
-                        kvp.Value.Draw(kvp.Key);
+                        kvp.Value.Draw();
                     }
                 }
             }

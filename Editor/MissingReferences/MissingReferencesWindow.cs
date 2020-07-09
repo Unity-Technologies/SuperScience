@@ -13,12 +13,22 @@ namespace Unity.Labs.SuperScience
     abstract class MissingReferencesWindow : EditorWindow
     {
         /// <summary>
+        /// Base class for asset and prefab references, so they can exist in the same list
+        /// </summary>
+        protected abstract class MissingReferencesContainer
+        {
+            public abstract void Draw();
+            public abstract UnityObject Object { get; }
+            public abstract void SetVisibleRecursively(bool visible);
+        }
+
+        /// <summary>
         /// Tree structure for GameObject scan results
         /// When the Scan method encounters a GameObject in a scene or a prefab in the project, we initialize one of
         /// these using the GameObject as an argument. This scans the object and its components/children, retaining
         /// the results for display in the GUI. The window calls into these helper objects to draw them, as well.
         /// </summary>
-        protected class GameObjectContainer
+        protected class GameObjectContainer : MissingReferencesContainer
         {
             /// <summary>
             /// Container for component scan results. Just as with GameObjectContainer, we initialize one of these
@@ -83,7 +93,7 @@ namespace Unity.Labs.SuperScience
             bool m_ShowChildren;
 
             public int Count { get; private set; }
-            public GameObject GameObject { get { return m_GameObject; } }
+            public override UnityObject Object { get { return m_GameObject; } }
 
             public GameObjectContainer() { }
 
@@ -153,10 +163,10 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// Draw missing reference information for this GameObjectContainer
             /// </summary>
-            internal void Draw(string name)
+            public override void Draw()
             {
                 var wasVisible = m_Visible;
-                var label = string.Format(k_LabelFormat, name, Count);
+                var label = string.Format(k_LabelFormat, m_GameObject.name, Count);
                 if (m_IsMissingPrefab)
                     label = string.Format(k_MissingPrefabLabelFormat, label);
 
@@ -230,7 +240,7 @@ namespace Unity.Labs.SuperScience
 
                         // Check for null in case  of destroyed object
                         if (childObject)
-                            child.Draw(childObject.name);
+                            child.Draw();
                     }
                 }
             }
@@ -239,7 +249,7 @@ namespace Unity.Labs.SuperScience
             /// Set the visibility state of this object and all of its children
             /// </summary>
             /// <param name="visible">Whether this object and its children should be visible in the GUI</param>
-            public void SetVisibleRecursively(bool visible)
+            public override void SetVisibleRecursively(bool visible)
             {
                 m_Visible = visible;
                 m_ShowComponents = visible;
@@ -293,6 +303,7 @@ namespace Unity.Labs.SuperScience
         const string k_TargetPropertyName = "m_Target";
         const string k_MethodNamePropertyName = "m_MethodName";
         const string k_ScanButtonName = "Scan";
+        const string k_MissingMethodFormat = "Missing Method: {0}";
 
         Options m_Options = new Options();
 
@@ -418,7 +429,7 @@ namespace Unity.Labs.SuperScience
                     // The only way a generic property could be in the list of missing properties is if it
                     // is a serialized UnityEvent with its method missing
                     case SerializedPropertyType.Generic:
-                        EditorGUILayout.LabelField(string.Format("Missing Method: {0}", property.propertyPath));
+                        EditorGUILayout.LabelField(string.Format(k_MissingMethodFormat, property.propertyPath));
                         break;
                     case SerializedPropertyType.ObjectReference:
                         EditorGUILayout.PropertyField(property, new GUIContent(property.propertyPath));
