@@ -62,7 +62,12 @@ If you want to continuously update your running behaviors while in edit mode (as
 ## HiddenHierarchy: Find hidden scene objects
 Sometimes it is necessary for Unity systems to add hidden objects to the user's scene. Either the object should not be selected and modified, should not be included in Player builds, or needs to be hidden for other reasons.
 
-The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes which includes all GameObjects, even those normally hidden in the hierarchy. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes, preview scenes, and "free objects" which exist outside of scenes. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
+
+## HiddenInspector: Edit hidden components and properties
+Likewise with hidden GameObjects, some Components may be hidden. The HiddenInspector window displays the currently selected GameObject and its full list of components, including those which are hidden from the normal inspector. Each component (as well as the GameObject's properties) will contain a raw list of properties, similar to the Debug Inpector.
+
+It is possible to show even more properties by enabling Show Hidden Properties. This will show non-visible properties as well as the hideFlags field which can be used to make component or objects visible to the normal hierarchy and inspector, and enable editing on read-only objects. Naturally, this can have detrimental consequences and may have adverse effects on Unity systems. Similarly, destroying hidden objects or components with this view can case errors or adverse effects.
 
 ## ModificationResponse
 This is an example of how to hook into Undo.postprocessModifications and Undo.undoRedoPerformed to respond to property modifications in a Scene.  It uses a short timer that is reset and started when a change is detected, and it only triggers the response when the timer finishes.  This pattern is useful when you have a complex response that you don't want to happen constantly as a continuous property is changed (for example, as a user drags a slider in the Inspector).
@@ -75,10 +80,11 @@ It is sometimes necessary to reference Editor code in your runtime assembly.  Fo
 
 EditorDelegatesExampleWindow provides functionality to EditorDelegates for checking if the mouse is over the window and firing callbacks when the window is focused and unfocused. The MonoBehaviour EditorDelegatesUser is then able to use this functionality even though it is in the runtime assembly.
 
-## MissingReferences: Track down references to missing assets
-The goal of the MissingReferences window is to identify assets in your project that may be missing their dependencies. It can identify two problematic situations:
-- A script on a prefab is missing
-- An object field on an asset is missing its reference
+## MissingReferences: Track down references to missing assets or methods
+The goal of the MissingReferences windows is to identify assets in your project or objects in loaded scenes that may be missing their dependencies. It can identify the following problematic situations:
+- A script on a scene object prefab is missing
+- An object field on an asset or scene object is missing its reference
+- A prefab instance in a loaded scene is missing its prefab asset
+- Serialized UnityEvent properties are missing their target object or method, or references a method which doesn't exist
 
-Note that this window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.
-
+Note that the Missing Project References window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or refactor the script to work on the current selection.
