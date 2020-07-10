@@ -80,9 +80,11 @@ It is sometimes necessary to reference Editor code in your runtime assembly.  Fo
 
 EditorDelegatesExampleWindow provides functionality to EditorDelegates for checking if the mouse is over the window and firing callbacks when the window is focused and unfocused. The MonoBehaviour EditorDelegatesUser is then able to use this functionality even though it is in the runtime assembly.
 
-## MissingReferences: Track down references to missing assets
-The goal of the MissingReferences window is to identify assets in your project that may be missing their dependencies. It can identify two problematic situations:
-- A script on a prefab is missing
-- An object field on an asset is missing its reference
+## MissingReferences: Track down references to missing assets or methods
+The goal of the MissingReferences windows is to identify assets in your project or objects in loaded scenes that may be missing their dependencies. It can identify the following problematic situations:
+- A script on a scene object prefab is missing
+- An object field on an asset or scene object is missing its reference
+- A prefab instance in a loaded scene is missing its prefab asset
+- Serialized UnityEvent properties are missing their target object or method, or references a method which doesn't exist
 
-Note that this window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or reconfigure the script to work on the current selection.
+Note that the Missing Project References window will load all of the assets in your project, synchronously, when you hit Refresh. In large projects, this can crash Unity, so use this window at your own risk! If you want to use this with large projects, replace the call to `AssetDatabase.GetAllAssetPaths()` with a call to `AssetDatabase.FindAssets()` and some narrower search, or refactor the script to work on the current selection.
