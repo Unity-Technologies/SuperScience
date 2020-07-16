@@ -79,7 +79,7 @@ namespace Unity.Labs.SuperScience
         List<bool> m_SceneFoldoutStates = new List<bool>();
         bool m_FreeGameObjectsFoldout = true;
 
-        // Dictionary cannot not be serialized, so foldout states will not survive domain reload
+        // Dictionary cannot be serialized, so foldout states will not survive domain reload
         readonly Dictionary<GameObject, bool> m_GameObjectExpandedStates = new Dictionary<GameObject, bool>();
 
         // Non-serialized state stored here for non-auto-refresh mode
