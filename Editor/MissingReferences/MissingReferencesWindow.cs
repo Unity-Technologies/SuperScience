@@ -298,10 +298,11 @@ namespace Unity.Labs.SuperScience
             public bool IncludeUnsetMethods = true;
         }
 
+        internal const string TargetPropertyName = "m_Target";
+        internal const string MethodNamePropertyName = "m_MethodName";
+
         const float k_LabelWidthRatio = 0.5f;
         const string k_PersistentCallsSearchString = "m_PersistentCalls.m_Calls.Array.data[";
-        const string k_TargetPropertyName = "m_Target";
-        const string k_MethodNamePropertyName = "m_MethodName";
         const string k_ScanButtonName = "Scan";
         const string k_MissingMethodFormat = "Missing Method: {0}";
 
@@ -359,8 +360,8 @@ namespace Unity.Labs.SuperScience
                     if (propertyPath.Contains(k_PersistentCallsSearchString))
                     {
                         // UnityEvent properties contain a target object and a method name
-                        var targetProperty = property.FindPropertyRelative(k_TargetPropertyName);
-                        var methodProperty = property.FindPropertyRelative(k_MethodNamePropertyName);
+                        var targetProperty = property.FindPropertyRelative(TargetPropertyName);
+                        var methodProperty = property.FindPropertyRelative(MethodNamePropertyName);
 
                         if (targetProperty != null && methodProperty != null)
                         {
