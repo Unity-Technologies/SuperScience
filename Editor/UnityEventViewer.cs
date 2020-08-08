@@ -11,10 +11,11 @@ namespace Unity.Labs.SuperScience
     {
         class EventRow
         {
+            public string TransformPath;
+            public Component Component;
             public SerializedProperty EventProperty;
             public SerializedProperty CallsProperty;
             public int CallCount;
-            public Component Component;
         }
 
         bool m_ShowEventsInAssets;
@@ -93,6 +94,7 @@ namespace Unity.Labs.SuperScience
                     if (size > 0)
                         m_EventRows.Add(new EventRow
                         {
+                            TransformPath = GetTransformPath(null, component.transform),
                             Component = component,
                             EventProperty = lastProperty,
                             CallCount = size,
@@ -103,6 +105,15 @@ namespace Unity.Labs.SuperScience
                     lastProperty = iterator.Copy();
                 }
             }
+
+            m_EventRows.Sort((a, b) =>
+            {
+                var compare = a.TransformPath.CompareTo(b.TransformPath);
+                if (compare != 0)
+                    return compare;
+
+                return a.Component.ToString().CompareTo(b.Component.ToString());
+            });
         }
 
         void Print()
@@ -111,7 +122,7 @@ namespace Unity.Labs.SuperScience
             stringBuilder.AppendLine($"Total Call Count {m_CallCount}");
             foreach (var eventRow in m_EventRows)
             {
-                stringBuilder.AppendLine(GetTransformPath(null, eventRow.Component.transform));
+                stringBuilder.AppendLine(eventRow.TransformPath);
                 stringBuilder.AppendLine(eventRow.Component.ToString());
                 var callsProperty = eventRow.CallsProperty;
                 var callCount = eventRow.CallCount;
