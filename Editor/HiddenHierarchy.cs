@@ -23,13 +23,17 @@ namespace Unity.Labs.SuperScience
             {
                 SelectedRow = new GUIStyle
                 {
+#if UNITY_2019_3_OR_NEWER
                     normal = new GUIStyleState { background = Texture2D.grayTexture },
+#endif
                     fixedHeight = k_RowHeight
                 };
 
                 UnSelectedRow = new GUIStyle
                 {
+#if UNITY_2019_3_OR_NEWER
                     hover = new GUIStyleState { background = Texture2D.grayTexture },
+#endif
                     fixedHeight = k_RowHeight
                 };
 
