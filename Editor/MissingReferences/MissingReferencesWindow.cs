@@ -166,7 +166,7 @@ namespace Unity.Labs.SuperScience
             public override void Draw()
             {
                 var wasVisible = m_Visible;
-                var label = string.Format(k_LabelFormat, m_GameObject.name, Count);
+                var label = string.Format(k_LabelFormat, m_GameObject ? m_GameObject.name : "Scene Root", Count);
                 if (m_IsMissingPrefab)
                     label = string.Format(k_MissingPrefabLabelFormat, label);
 
