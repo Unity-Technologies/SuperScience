@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
@@ -110,6 +111,9 @@ namespace Unity.Labs.SuperScience
             readonly List<MissingReferencesContainer> m_Assets = new List<MissingReferencesContainer>();
             bool m_Visible;
 
+            internal List<MissingReferencesContainer> Assets => m_Assets;
+            internal SortedDictionary<string, Folder> Subfolders => m_Subfolders;
+            
             /// <summary>
             /// The number of assets in this folder with missing references
             /// </summary>
@@ -284,6 +288,32 @@ namespace Unity.Labs.SuperScience
             }
 
             m_ParentFolder.SortContentsRecursively();
+
+            var allMissingReferencesContainers = new List<MissingReferencesContainer>();
+
+            void AddToList(List<MissingReferencesContainer> list, Folder folder)
+            {
+                list.AddRange(folder.Assets);
+                foreach (var subfolder in folder.Subfolders)
+                {
+                    AddToList(list, subfolder.Value);
+                }
+            }
+            
+            AddToList(allMissingReferencesContainers, m_ParentFolder);
+            
+            allMissingReferences = allMissingReferencesContainers.ToLookup(x =>
+            {
+                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(x.Object, out var guid, out long localId);
+                return guid;
+            });
+
+            foreach (var reference in allMissingReferencesContainers)
+            {
+                EditorGUIUtility.PingObject(reference.Object);
+            }
+            
+            EditorApplication.RepaintProjectWindow();
         }
 
         protected override void OnGUI()
@@ -308,6 +338,28 @@ namespace Unity.Labs.SuperScience
                     m_ParentFolder.Draw(k_ProjectFolderName);
                 }
             }
+        }
+
+        private ILookup<string, MissingReferencesContainer> allMissingReferences;
+
+        private void OnEnable()
+        {
+            EditorApplication.projectWindowItemOnGUI += ProjectWindowItemOnGUI;
+            EditorApplication.RepaintProjectWindow();
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.projectWindowItemOnGUI -= ProjectWindowItemOnGUI;
+            EditorApplication.RepaintProjectWindow();
+        }
+
+        private void ProjectWindowItemOnGUI(string guid, Rect selectionRect)
+        {
+            if (allMissingReferences == null) return;
+            if (!allMissingReferences.Contains(guid)) return;
+            
+            DrawItem(selectionRect);
         }
     }
 }

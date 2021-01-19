@@ -34,7 +34,7 @@ namespace Unity.Labs.SuperScience
             /// Container for component scan results. Just as with GameObjectContainer, we initialize one of these
             /// using a component to scan it for missing references and retain the results
             /// </summary>
-            class ComponentContainer
+            internal class ComponentContainer
             {
                 const string k_MissingScriptLabel = "<color=red>Missing Script!</color>";
 
@@ -84,10 +84,15 @@ namespace Unity.Labs.SuperScience
             readonly GameObject m_GameObject;
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
+            internal List<GameObjectContainer> Children => m_Children;
+            internal List<ComponentContainer> Components => m_Components;
+            
             bool m_IsMissingPrefab;
             int m_MissingReferencesInChildren;
             int m_MissingReferencesInComponents;
 
+            internal bool HasMissingReferences => m_IsMissingPrefab || m_MissingReferencesInComponents > 0;
+            
             bool m_Visible;
             bool m_ShowComponents;
             bool m_ShowChildren;
@@ -321,6 +326,16 @@ namespace Unity.Labs.SuperScience
             m_Options.IncludeUnsetMethods = EditorGUILayout.Toggle(Styles.IncludeUnsetMethodsContent, m_Options.IncludeUnsetMethods);
             if (GUILayout.Button(k_ScanButtonName))
                 Scan(m_Options);
+        }
+
+        protected virtual void DrawItem(Rect selectionRect)
+        {
+            selectionRect.xMin = selectionRect.xMax - 2;
+            selectionRect.x -= 4;
+            var c = GUI.color;
+            GUI.color = Color.red;
+            GUI.DrawTexture(selectionRect, Texture2D.whiteTexture);
+            GUI.color = c;
         }
 
         /// <summary>

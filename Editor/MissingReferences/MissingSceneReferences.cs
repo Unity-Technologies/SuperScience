@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
@@ -54,8 +55,35 @@ namespace Unity.Labs.SuperScience
 
                 ScanScene(scene, options);
             }
+            
+            List<GameObjectContainer> allMissingReferencesContainers = new List<GameObjectContainer>();
+
+            void AddToList(List<GameObjectContainer> list, GameObjectContainer container)
+            {
+                list.AddRange(container.Children.Where(x => x.HasMissingReferences));
+                foreach (var child in container.Children)
+                {
+                    AddToList(list, child);
+                }
+            }
+
+            foreach (var kvp in m_SceneRoots)
+            {
+                AddToList(allMissingReferencesContainers, kvp.Value);
+            }
+
+            allMissingReferences = allMissingReferencesContainers.ToLookup(x => x.Object.GetInstanceID());
+
+            foreach (var reference in allMissingReferencesContainers)
+            {
+                EditorGUIUtility.PingObject(reference.Object);
+            }
+            
+            EditorApplication.RepaintHierarchyWindow();
         }
 
+        private ILookup<int, GameObjectContainer> allMissingReferences;
+        
         void ScanScene(Scene scene, Options options)
         {
             var rootObjectContainer = new GameObjectContainer();
@@ -99,6 +127,26 @@ namespace Unity.Labs.SuperScience
                     }
                 }
             }
+        }
+        
+        private void OnEnable()
+        {
+            EditorApplication.hierarchyWindowItemOnGUI += HierarchyWindowItemOnGUI;
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.hierarchyWindowItemOnGUI -= HierarchyWindowItemOnGUI;
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        private void HierarchyWindowItemOnGUI(int instanceId, Rect selectionRect)
+        {
+            if (allMissingReferences == null) return;
+            if (!allMissingReferences.Contains(instanceId)) return;
+
+            DrawItem(selectionRect);
         }
     }
 }
