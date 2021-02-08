@@ -58,7 +58,7 @@ namespace Unity.Labs.SuperScience
                 ScanScene(scene, options);
             }
 
-            List<GameObjectContainer> allMissingReferencesContainers = new List<GameObjectContainer>();
+            var allMissingReferencesContainers = new List<GameObjectContainer>();
 
             void AddToList(List<GameObjectContainer> list, GameObjectContainer container)
             {
