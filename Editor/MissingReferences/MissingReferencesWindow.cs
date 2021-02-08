@@ -86,13 +86,13 @@ namespace Unity.Labs.SuperScience
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
             internal List<GameObjectContainer> Children => m_Children;
             internal List<ComponentContainer> Components => m_Components;
-            
+
             bool m_IsMissingPrefab;
             int m_MissingReferencesInChildren;
             int m_MissingReferencesInComponents;
 
             internal bool HasMissingReferences => m_IsMissingPrefab || m_MissingReferencesInComponents > 0;
-            
+
             bool m_Visible;
             bool m_ShowComponents;
             bool m_ShowChildren;
@@ -330,12 +330,13 @@ namespace Unity.Labs.SuperScience
 
         protected virtual void DrawItem(Rect selectionRect)
         {
-            selectionRect.xMin = selectionRect.xMax - 2;
-            selectionRect.x -= 4;
-            var c = GUI.color;
+            const float margin = 2;
+            selectionRect.xMin = selectionRect.xMax - margin;
+            selectionRect.x -= margin * 2;
+            var color = GUI.color;
             GUI.color = Color.red;
             GUI.DrawTexture(selectionRect, Texture2D.whiteTexture);
-            GUI.color = c;
+            GUI.color = color;
         }
 
         /// <summary>
