@@ -181,6 +181,13 @@ namespace Unity.Labs.SuperScience
 
         void OnGUI()
         {
+            if (Event.current.type == EventType.KeyUp && Event.current.keyCode == KeyCode.Delete)
+            {
+                var activeObject = Selection.activeGameObject;
+                if (activeObject != null)
+                    DestroyImmediate(activeObject);
+            }
+
             using (new GUILayout.HorizontalScope())
             {
                 m_AutoUpdate = EditorGUILayout.Toggle(k_AutoUpdateFieldLabel, m_AutoUpdate);
