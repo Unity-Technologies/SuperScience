@@ -2,6 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+#if UNITY_2021_2_OR_NEWER
+using UnityEditor.SceneManagement;
+#else
+using UnityEditor.Experimental.SceneManagement;
+#endif
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -41,7 +46,7 @@ namespace Unity.Labs.SuperScience
             m_SceneRoots.Clear();
 
             // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
-            var prefabStage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
             if (prefabStage != null)
             {
                 ScanScene(prefabStage.scene, options);
