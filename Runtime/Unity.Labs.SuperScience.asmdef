@@ -1,3 +1,21 @@
-﻿{
-	"name": "Unity.Labs.SuperScience"
+{
+    "name": "Unity.Labs.SuperScience",
+    "references": [
+        "Unity.XRTools.ModuleLoader.Interfaces"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xrtools.module-loader",
+            "expression": "1.0.0",
+            "define": "INCLUDE_MODULE_LOADER"
+        }
+    ]
 }

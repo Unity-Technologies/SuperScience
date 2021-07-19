@@ -1,8 +1,15 @@
-﻿using UnityEngine;
+﻿#if INCLUDE_MODULE_LOADER
+using Unity.XRTools.ModuleLoader;
+#endif
+
+using UnityEngine;
 
 namespace Unity.Labs.SuperScience
 {
     public class GizmoModule : MonoBehaviour
+#if INCLUDE_MODULE_LOADER
+    , IModule
+#endif
     {
         public static GizmoModule instance;
 
@@ -117,5 +124,14 @@ namespace Unity.Labs.SuperScience
             var wedgeMatrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
             Graphics.DrawMesh(m_QuadMesh, wedgeMatrix, m_GizmoCutoffMaterial, 0, null, 0, m_GizmoProperties);
         }
+
+#if INCLUDE_MODULE_LOADER
+        void IModule.LoadModule()
+        {
+            instance = this;
+        }
+
+        void IModule.UnloadModule() { }
+#endif
     }
 }
