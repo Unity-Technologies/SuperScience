@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
@@ -109,6 +110,9 @@ namespace Unity.Labs.SuperScience
             readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
             readonly List<MissingReferencesContainer> m_Assets = new List<MissingReferencesContainer>();
             bool m_Visible;
+
+            internal List<MissingReferencesContainer> Assets => m_Assets;
+            internal SortedDictionary<string, Folder> Subfolders => m_Subfolders;
 
             /// <summary>
             /// The number of assets in this folder with missing references
@@ -263,6 +267,8 @@ namespace Unity.Labs.SuperScience
         Vector2 m_ScrollPosition;
         readonly Folder m_ParentFolder = new Folder();
 
+        ILookup<string, MissingReferencesContainer> m_AllMissingReferences;
+
         [MenuItem("Window/SuperScience/Missing Project References")]
         static void OnMenuItem() { GetWindow<MissingProjectReferences>("Missing Project References"); }
 
@@ -284,6 +290,32 @@ namespace Unity.Labs.SuperScience
             }
 
             m_ParentFolder.SortContentsRecursively();
+
+            var allMissingReferencesContainers = new List<MissingReferencesContainer>();
+
+            void AddToList(List<MissingReferencesContainer> list, Folder folder)
+            {
+                list.AddRange(folder.Assets);
+                foreach (var subfolder in folder.Subfolders)
+                {
+                    AddToList(list, subfolder.Value);
+                }
+            }
+
+            AddToList(allMissingReferencesContainers, m_ParentFolder);
+
+            m_AllMissingReferences = allMissingReferencesContainers.ToLookup(container =>
+            {
+                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(container.Object, out var guid, out long _);
+                return guid;
+            });
+
+            foreach (var reference in allMissingReferencesContainers)
+            {
+                EditorGUIUtility.PingObject(reference.Object);
+            }
+
+            EditorApplication.RepaintProjectWindow();
         }
 
         protected override void OnGUI()
@@ -308,6 +340,29 @@ namespace Unity.Labs.SuperScience
                     m_ParentFolder.Draw(k_ProjectFolderName);
                 }
             }
+        }
+
+        void OnEnable()
+        {
+            EditorApplication.projectWindowItemOnGUI += ProjectWindowItemOnGUI;
+            EditorApplication.RepaintProjectWindow();
+        }
+
+        void OnDisable()
+        {
+            EditorApplication.projectWindowItemOnGUI -= ProjectWindowItemOnGUI;
+            EditorApplication.RepaintProjectWindow();
+        }
+
+        void ProjectWindowItemOnGUI(string guid, Rect selectionRect)
+        {
+            if (m_AllMissingReferences == null)
+                return;
+
+            if (!m_AllMissingReferences.Contains(guid))
+                return;
+
+            DrawItem(selectionRect);
         }
     }
 }

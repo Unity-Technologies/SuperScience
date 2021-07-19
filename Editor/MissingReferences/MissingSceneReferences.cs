@@ -1,7 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
+#if UNITY_2021_2_OR_NEWER
+using UnityEditor.SceneManagement;
+#else
 using UnityEditor.Experimental.SceneManagement;
+#endif
+
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -24,6 +30,8 @@ namespace Unity.Labs.SuperScience
 
         Vector2 m_ScrollPosition;
         readonly List<KeyValuePair<string, GameObjectContainer>> m_SceneRoots = new List<KeyValuePair<string, GameObjectContainer>>();
+
+        ILookup<int, GameObjectContainer> m_AllMissingReferences;
 
         [MenuItem("Window/SuperScience/Missing Scene References")]
         static void OnMenuItem() { GetWindow<MissingSceneReferences>("Missing Scene References"); }
@@ -54,6 +62,31 @@ namespace Unity.Labs.SuperScience
 
                 ScanScene(scene, options);
             }
+
+            var allMissingReferencesContainers = new List<GameObjectContainer>();
+
+            void AddToList(List<GameObjectContainer> list, GameObjectContainer container)
+            {
+                list.AddRange(container.Children.Where(x => x.HasMissingReferences));
+                foreach (var child in container.Children)
+                {
+                    AddToList(list, child);
+                }
+            }
+
+            foreach (var kvp in m_SceneRoots)
+            {
+                AddToList(allMissingReferencesContainers, kvp.Value);
+            }
+
+            m_AllMissingReferences = allMissingReferencesContainers.ToLookup(x => x.Object.GetInstanceID());
+
+            foreach (var reference in allMissingReferencesContainers)
+            {
+                EditorGUIUtility.PingObject(reference.Object);
+            }
+
+            EditorApplication.RepaintHierarchyWindow();
         }
 
         void ScanScene(Scene scene, Options options)
@@ -99,6 +132,29 @@ namespace Unity.Labs.SuperScience
                     }
                 }
             }
+        }
+
+        void OnEnable()
+        {
+            EditorApplication.hierarchyWindowItemOnGUI += HierarchyWindowItemOnGUI;
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        void OnDisable()
+        {
+            EditorApplication.hierarchyWindowItemOnGUI -= HierarchyWindowItemOnGUI;
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        void HierarchyWindowItemOnGUI(int instanceId, Rect selectionRect)
+        {
+            if (m_AllMissingReferences == null)
+                return;
+
+            if (!m_AllMissingReferences.Contains(instanceId))
+                return;
+
+            DrawItem(selectionRect);
         }
     }
 }
