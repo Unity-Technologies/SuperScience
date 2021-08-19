@@ -1,0 +1,36 @@
+// This file is generated. Do not modify by hand.
+// XML documentation file not found. To check if public methods have XML comments,
+// make sure the XML doc file is present and located next to the scraped dll
+namespace Unity.Labs.SuperScience
+{
+    public class EditorDelegatesExampleWindow : UnityEditor.EditorWindow
+    {
+        public EditorDelegatesExampleWindow() {}
+    }
+
+    public class HiddenHierarchy : UnityEditor.EditorWindow
+    {
+        public HiddenHierarchy() {}
+    }
+
+    public class HiddenInspector : UnityEditor.EditorWindow
+    {
+        public HiddenInspector() {}
+    }
+
+    public class ModificationResponseExampleWindow : UnityEditor.EditorWindow
+    {
+        public ModificationResponseExampleWindow() {}
+    }
+
+    [System.Runtime.CompilerServices.Extension] public static class MonoBehaviourExtensions
+    {
+        [System.Runtime.CompilerServices.Extension] public static void StartRunInEditMode(UnityEngine.MonoBehaviour behaviour);
+        [System.Runtime.CompilerServices.Extension] public static void StopRunInEditMode(UnityEngine.MonoBehaviour behaviour);
+    }
+
+    public class RunInEditHelper : UnityEditor.EditorWindow
+    {
+        public RunInEditHelper() {}
+    }
+}
