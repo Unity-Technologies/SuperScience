@@ -1,0 +1,90 @@
+// This file is generated. Do not modify by hand.
+// XML documentation file not found. To check if public methods have XML comments,
+// make sure the XML doc file is present and located next to the scraped dll
+namespace Unity.Labs.SuperScience
+{
+    public class ColorContributor : UnityEngine.MonoBehaviour
+    {
+        public UnityEngine.Color color { get; }
+        public ColorContributor() {}
+    }
+
+    public static class EditorDelegates
+    {
+        public static event System.Action onExampleWindowFocus;
+        public static event System.Action onExampleWindowLostFocus;
+        public static System.Func<bool> IsMouseOverExampleWindow { get; set; }
+        public static System.Action ShowExampleWindow { get; set; }
+        public static void OnExampleWindowFocus();
+        public static void OnExampleWindowLostFocus();
+    }
+
+    public class EditorDelegatesUser : UnityEngine.MonoBehaviour
+    {
+        public EditorDelegatesUser() {}
+    }
+
+    public class ExampleSceneMetadata : UnityEngine.ScriptableObject
+    {
+        public ExampleSceneMetadata() {}
+        public void UpdateFromScene(UnityEngine.SceneManagement.Scene scene);
+    }
+
+    public class GizmoModule : UnityEngine.MonoBehaviour, Unity.XRTools.ModuleLoader.IModule
+    {
+        public static Unity.Labs.SuperScience.GizmoModule instance;
+        public const float RayLength = 100;
+        public UnityEngine.Material gizmoCutoffMaterial { get; }
+        public UnityEngine.Material gizmoMaterial { get; }
+        public GizmoModule() {}
+        public void DrawCube(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation, UnityEngine.Vector3 scale, UnityEngine.Color color);
+        public void DrawRay(UnityEngine.Vector3 origin, UnityEngine.Vector3 direction, UnityEngine.Color color, float viewerScale = 1, float rayLength = 100);
+        public void DrawSphere(UnityEngine.Vector3 center, float radius, UnityEngine.Color color);
+        public void DrawWedge(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation, float radius, float angle, UnityEngine.Color color);
+    }
+
+    public class HandPose : UnityEngine.MonoBehaviour
+    {
+        public HandPose() {}
+    }
+
+    public class PhysicsTracker
+    {
+        public UnityEngine.Vector3 Acceleration { get; }
+        public float AccelerationStrength { get; }
+        public UnityEngine.Vector3 AngularAcceleration { get; }
+        public float AngularAccelerationStrength { get; }
+        public UnityEngine.Vector3 AngularAxis { get; }
+        public float AngularSpeed { get; }
+        public UnityEngine.Vector3 AngularVelocity { get; }
+        public UnityEngine.Vector3 Direction { get; }
+        public float Speed { get; }
+        public UnityEngine.Vector3 Velocity { get; }
+        public PhysicsTracker() {}
+        public void Reset(UnityEngine.Vector3 currentPosition, UnityEngine.Quaternion currentRotation, UnityEngine.Vector3 currentVelocity, UnityEngine.Vector3 currentAngularVelocity);
+        public void Update(UnityEngine.Vector3 newPosition, UnityEngine.Quaternion newRotation, float timeSlice);
+    }
+
+    public class Rotator : UnityEngine.MonoBehaviour
+    {
+        public Rotator() {}
+    }
+
+    public class SampleGizmos : UnityEngine.MonoBehaviour
+    {
+        public SampleGizmos() {}
+    }
+
+    public class Stabilizr : UnityEngine.MonoBehaviour
+    {
+        public Stabilizr() {}
+    }
+}
+
+namespace Unity.Labs.SuperScience.Example
+{
+    public class DrawPhysicsData : UnityEngine.MonoBehaviour
+    {
+        public DrawPhysicsData() {}
+    }
+}
