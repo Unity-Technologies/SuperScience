@@ -17,7 +17,7 @@ namespace Unity.Labs.SuperScience
 
         /// <summary>
         /// Stop this behaviour running in edit mode.
-        /// If the behaviour is enabled, we first disable it so that OnDisable is called. Then we set runInEditmode to false.
+        /// If the behaviour is enabled, we first disable it so that OnDisable is called. Then we set runInEditMode to false.
         /// Then, if the behaviour was enabled, we re-enable it.
         /// </summary>
         public static void StopRunInEditMode(this MonoBehaviour behaviour)
@@ -99,7 +99,7 @@ namespace Unity.Labs.SuperScience
                 }
             }
 
-            GUILayout.Label(string.Format("Objects currently running in edit mode: {0}", k_RunningBehaviors.Count));
+            GUILayout.Label($"Objects currently running in edit mode: {k_RunningBehaviors.Count}");
             m_SearchTerm = EditorGUILayout.TextField("Search", m_SearchTerm);
 
             k_RunningBehaviors.Clear();
