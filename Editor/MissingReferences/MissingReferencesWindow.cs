@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
@@ -403,7 +404,7 @@ namespace Unity.Labs.SuperScience
                                 var type = targetProperty.objectReferenceValue.GetType();
                                 try
                                 {
-                                    if (!type.GetMethods().Any(info => info.Name == methodName))
+                                    if (!type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Any(info => info.Name == methodName))
                                         return true;
                                 }
                                 catch (Exception e)
