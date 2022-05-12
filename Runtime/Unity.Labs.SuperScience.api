@@ -3,6 +3,14 @@
 // make sure the XML doc file is present and located next to the scraped dll
 namespace Unity.Labs.SuperScience
 {
+    public struct Color32ToInt
+    {
+        public UnityEngine.Color32 Color { get; }
+        public int Int { get; }
+        public static int Convert(UnityEngine.Color32 color);
+        public static UnityEngine.Color32 Convert(int value);
+    }
+
     public class ColorContributor : UnityEngine.MonoBehaviour
     {
         public UnityEngine.Color color { get; }
