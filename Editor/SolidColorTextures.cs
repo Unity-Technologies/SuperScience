@@ -359,6 +359,9 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        /// <summary>
+        /// Update the current scan coroutine.
+        /// </summary>
         void UpdateScan()
         {
             if (m_ScanEnumerator == null)
@@ -366,8 +369,11 @@ namespace Unity.Labs.SuperScience
 
             k_StopWatch.Reset();
             k_StopWatch.Start();
+
+            // Process as many steps as possible within a given time frame
             while (m_ScanEnumerator.MoveNext())
             {
+                // Process for a maximum amount of time and early-out to keep the UI responsive
                 if (k_StopWatch.ElapsedMilliseconds > k_MaxScanUpdateTimeMilliseconds)
                     break;
             }
@@ -375,6 +381,11 @@ namespace Unity.Labs.SuperScience
             m_ParentFolder.SortContentsRecursively();
         }
 
+        /// <summary>
+        /// Coroutine for processing scan results.
+        /// </summary>
+        /// <param name="textureAssets">Texture assets to scan.</param>
+        /// <returns>IEnumerator used to run the coroutine.</returns>
         IEnumerator ProcessScan(Dictionary<string, Texture2D> textureAssets)
         {
             m_ScanCount = textureAssets.Count;
