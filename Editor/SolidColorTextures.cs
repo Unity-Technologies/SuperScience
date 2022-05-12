@@ -1,7 +1,10 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Unity.Labs.SuperScience
 {
@@ -249,6 +252,8 @@ namespace Unity.Labs.SuperScience
         const string k_Instructions = "Click the Scan button to scan your project for solid color textures. WARNING: " +
             "This will load every texture in your project. For large projects, this may take a long time and/or crash the Editor.";
         const string k_ScanFilter = "t:Texture2D";
+        const int k_ProgressBarHeight = 15;
+        const int k_MaxScanUpdateTimeMilliseconds = 50;
 
         static readonly GUIContent k_ScanGUIContent = new GUIContent("Scan", "Scan the project for solid color textures");
 
@@ -257,13 +262,16 @@ namespace Unity.Labs.SuperScience
 
         static readonly Vector2 k_MinSize = new Vector2(400, 200);
 
+        static readonly Stopwatch k_StopWatch = new Stopwatch();
+
         Vector2 m_ColorListScrollPosition;
         Vector2 m_FolderTreeScrollPosition;
-        readonly HashSet<(string, Texture2D)> m_PreviewPool = new HashSet<(string, Texture2D)>();
-        readonly List<(string, Texture2D)> m_CurrentPreviewPool = new List<(string, Texture2D)>();
         readonly Folder m_ParentFolder = new Folder();
         readonly Dictionary<int, ColorRow> m_TexturesByColor = new Dictionary<int, ColorRow>();
         static readonly string[] k_ScanFolders = new[] {"Assets", "Packages"};
+        int m_ScanCount;
+        int m_ScanProgress;
+        IEnumerator m_ScanEnumerator;
 
         /// <summary>
         /// Initialize the window
@@ -277,16 +285,18 @@ namespace Unity.Labs.SuperScience
         void OnEnable()
         {
             minSize = k_MinSize;
+            m_ScanCount = 0;
+            m_ScanProgress = 0;
         }
 
         void OnGUI()
         {
             EditorGUIUtility.labelWidth = position.width - k_TextureColumnWidth - k_ColorPanelWidth;
+
+            var rect = GUILayoutUtility.GetRect(0, float.PositiveInfinity, k_ProgressBarHeight, k_ProgressBarHeight);
+            EditorGUI.ProgressBar(rect, (float)m_ScanProgress / m_ScanCount, $"{m_ScanProgress} / {m_ScanCount}");
             if (GUILayout.Button(k_ScanGUIContent))
                 Scan();
-
-            if (m_PreviewPool.Count > 0)
-                GUILayout.Label($"Processing {m_PreviewPool.Count} textures...");
 
             if (m_ParentFolder.Count == 0)
             {
@@ -349,19 +359,53 @@ namespace Unity.Labs.SuperScience
             }
         }
 
-        void Update()
+        void UpdateScan()
         {
-            m_CurrentPreviewPool.Clear();
-            m_CurrentPreviewPool.AddRange(m_PreviewPool);
-            foreach (var (path, textureAsset) in m_CurrentPreviewPool)
-            {
-                var preview = AssetPreview.GetAssetPreview(textureAsset);
-                if (preview == null)
-                    continue;
+            if (m_ScanEnumerator == null)
+                return;
 
-                CheckForSolidColorTexture(path, preview, textureAsset);
-                m_PreviewPool.Remove((path, textureAsset));
+            k_StopWatch.Reset();
+            k_StopWatch.Start();
+            while (m_ScanEnumerator.MoveNext())
+            {
+                if (k_StopWatch.ElapsedMilliseconds > k_MaxScanUpdateTimeMilliseconds)
+                    break;
             }
+
+            m_ParentFolder.SortContentsRecursively();
+        }
+
+        IEnumerator ProcessScan(Dictionary<string, Texture2D> textureAssets)
+        {
+            m_ScanCount = textureAssets.Count;
+            m_ScanProgress = 0;
+            while (m_ScanProgress < m_ScanCount)
+            {
+                var remainingTextureAssets = new Dictionary<string, Texture2D>(textureAssets);
+                foreach (var kvp in remainingTextureAssets)
+                {
+                    var path = kvp.Key;
+                    var textureAsset = kvp.Value;
+                    var texture = textureAsset;
+
+                    // For non-readable textures, get a preview texture which is readable
+                    // TODO: get a full-size preview; AssetPreview.GetAssetPreview returns a 128x128 texture
+                    if (!textureAsset.isReadable)
+                    {
+                        texture = AssetPreview.GetAssetPreview(textureAsset);
+                        if (texture == null)
+                            continue;
+                    }
+
+                    CheckForSolidColorTexture(path, texture, textureAsset);
+                    m_ScanProgress++;
+                    textureAssets.Remove(path);
+                    yield return null;
+                }
+            }
+
+            m_ScanEnumerator = null;
+            EditorApplication.update -= UpdateScan;
         }
 
         /// <summary>
@@ -375,6 +419,8 @@ namespace Unity.Labs.SuperScience
 
             m_TexturesByColor.Clear();
             m_ParentFolder.Clear();
+
+            var textureAssets = new Dictionary<string, Texture2D>();
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
@@ -399,18 +445,11 @@ namespace Unity.Labs.SuperScience
                 if (!AssetDatabase.IsMainAsset(texture))
                     continue;
 
-                // For non-readable textures, get a preview texture which is readable
-                // TODO: get a full-size preview; AssetPreview.GetAssetPreview returns a 128x128 texture
-                if (!texture.isReadable)
-                {
-                    m_PreviewPool.Add((path, texture2D));
-                    continue;
-                }
-
-                CheckForSolidColorTexture(path, texture2D, texture2D);
+                textureAssets.Add(path, texture2D);
             }
 
-            m_ParentFolder.SortContentsRecursively();
+            m_ScanEnumerator = ProcessScan(textureAssets);
+            EditorApplication.update += UpdateScan;
         }
 
         /// <summary>
