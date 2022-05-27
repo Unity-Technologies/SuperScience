@@ -4,6 +4,10 @@ using UnityEditor;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
 
+#if !UNITY_2019_1_OR_NEWER
+using UnityEditor.SceneManagement;
+#endif
+
 namespace Unity.Labs.SuperScience
 {
     public class HiddenInspector : EditorWindow
@@ -104,7 +108,7 @@ namespace Unity.Labs.SuperScience
             m_ShowHiddenProperties = EditorGUILayout.Toggle(k_ShowHiddenPropertiesLabel, m_ShowHiddenProperties);
             using (var scrollView = new EditorGUILayout.ScrollViewScope(m_ScrollPosition))
             {
-                DrawSerializedObject(target, target);
+                DrawSerializedObject(target, target, 0);
 
                 // Bail on this GUI pass if we've just destroyed the object
                 if (target == null)
@@ -114,12 +118,20 @@ namespace Unity.Labs.SuperScience
                 var components = target.GetComponents<Component>();
                 for (var i = 0; i < components.Length; i++)
                 {
+#if UNITY_2019_1_OR_NEWER
                     DrawSerializedObject(components[i], target);
+#else
+                    DrawSerializedObject(components[i], target, i);
+#endif
                 }
             }
         }
 
+#if UNITY_2019_1_OR_NEWER
         void DrawSerializedObject(UnityObject drawTarget, GameObject inspectorTarget)
+#else
+        void DrawSerializedObject(UnityObject drawTarget, GameObject inspectorTarget, int i)
+#endif
         {
             var expanded = false;
             using (new EditorGUILayout.HorizontalScope())
@@ -184,8 +196,7 @@ namespace Unity.Labs.SuperScience
             if (expanded)
             {
                 // Cache SerializedObjects to avoid heap churn
-                SerializedObject serializedObject;
-                if (!m_SerializedObjects.TryGetValue(drawTarget, out serializedObject))
+                if (!m_SerializedObjects.TryGetValue(drawTarget, out var serializedObject))
                 {
                     serializedObject = new SerializedObject(drawTarget);
                     m_SerializedObjects[drawTarget] = serializedObject;
