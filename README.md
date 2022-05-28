@@ -15,14 +15,14 @@ Use the example scripts directly, or tweak and alter the algorithms inside to fi
 ## Stabilizr : Object Stabilization for XR
 "The Fishing Rod Problem" - Virtual objects or rays locked to a controller can shake in an unnatural way.  In the real world, long objects have weight, which gives them stabilization through inertia.  In XR, this lack of stabilization makes objects feel fake and precise selection difficult.
 
-Stabilzr is a solution to this problem.  It smoothes the rotation of virtual objects in three scenarios
+Stabilizr is a solution to this problem.  It smooths the rotation of virtual objects in three scenarios
 - Steady Motion: Holding an object at a precise angle while moving the controller
 - Orbiting (endpoint) Motion: Holding the end of an object or ray at a particular spot while moving the controller
 - Still Motion: Holding an object at a precise angle while clicking a button on the controller
 
-Stabilzr works without adding lag to large sweeping motions - precise control is enabled while **in the worst case** only diverging from ground truth by 2 degrees for a single frame.
+Stabilizr works without adding lag to large sweeping motions - precise control is enabled while **in the worst case** only diverging from ground truth by 2 degrees for a single frame.
 
-For an example of Stabilzr in action, check out the included 'TestScene'.  A 6 foot broom and 12 foot pointing stick are attached to the right and left XR controllers.  To compare before/after, two additional gameobjects (labelled Non-Stabilized Overlay) can be enabled.  These are non-stabilized copies of the broom and pointer that render of top of the originals.
+For an example of Stabilizr in action, check out the included 'TestScene'.  A 6 foot broom and 12 foot pointing stick are attached to the right and left XR controllers.  To compare before/after, two additional gameobjects (labelled Non-Stabilized Overlay) can be enabled.  These are non-stabilized copies of the broom and pointer that render of top of the originals.
 
 ## GizmoModule: Gizmos for EditorXR/Runtime
 The normal Gizmos.Draw[Primitive] and Debug.DrawLine APIs don't work in EditorXR, and don't work in Runtime. The GizmoModule can be loaded alongside EditorXR, or included in a player build to provide similar functionality through the Graphics.DrawMesh API.
@@ -65,7 +65,7 @@ Sometimes it is necessary for Unity systems to add hidden objects to the user's 
 The HiddenHierarchy window shows a Hierarchy-like view of the currently open scenes, preview scenes, and "free objects" which exist outside of scenes. This is useful for debugging systems involving hidden objects, in case new objects "leak" into the scene or the system somehow fails to destroy a hidden object.
 
 ## HiddenInspector: Edit hidden components and properties
-Likewise with hidden GameObjects, some Components may be hidden. The HiddenInspector window displays the currently selected GameObject and its full list of components, including those which are hidden from the normal inspector. Each component (as well as the GameObject's properties) will contain a raw list of properties, similar to the Debug Inpector.
+Likewise with hidden GameObjects, some Components may be hidden. The HiddenInspector window displays the currently selected GameObject and its full list of components, including those which are hidden from the normal inspector. Each component (as well as the GameObject's properties) will contain a raw list of properties, similar to the Debug Inspector.
 
 It is possible to show even more properties by enabling Show Hidden Properties. This will show non-visible properties as well as the hideFlags field which can be used to make component or objects visible to the normal hierarchy and inspector, and enable editing on read-only objects. Naturally, this can have detrimental consequences and may have adverse effects on Unity systems. Similarly, destroying hidden objects or components with this view can case errors or adverse effects.
 
@@ -76,7 +76,7 @@ This is an example of how to hook into Undo.postprocessModifications and Undo.un
 One way to store metadata for a Scene is by keeping it in a ScriptableObject Asset, in which case you need to make sure the Asset is kept in sync with the Scene. This example shows how to use the OnWillSaveAssets callback in AssetModificationProcessor to ensure that a metadata Asset gets saved with the Scene.
 
 ## EditorDelegates
-It is sometimes necessary to reference Editor code in your runtime assembly.  For example, a MonoBehaviour may exist only for the purpose of edit-time functionality, but it must live in a runtime assembly due to the rule against MonoBehaviours in Editor assemblies.  In this case, it is often useful to define some static delegate fields inside of an '#if UNTY_EDITOR' directive.  An Editor class can assign its own methods to those delegates, providing access to itself in the runtime assembly.
+It is sometimes necessary to reference Editor code in your runtime assembly.  For example, a MonoBehaviour may exist only for the purpose of edit-time functionality, but it must live in a runtime assembly due to the rule against MonoBehaviours in Editor assemblies.  In this case, it is often useful to define some static delegate fields inside of an '#if UNITY_EDITOR' directive.  An Editor class can assign its own methods to those delegates, providing access to itself in the runtime assembly.
 
 EditorDelegatesExampleWindow provides functionality to EditorDelegates for checking if the mouse is over the window and firing callbacks when the window is focused and unfocused. The MonoBehaviour EditorDelegatesUser is then able to use this functionality even though it is in the runtime assembly.
 
