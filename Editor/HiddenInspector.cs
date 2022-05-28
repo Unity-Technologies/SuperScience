@@ -108,7 +108,11 @@ namespace Unity.Labs.SuperScience
             m_ShowHiddenProperties = EditorGUILayout.Toggle(k_ShowHiddenPropertiesLabel, m_ShowHiddenProperties);
             using (var scrollView = new EditorGUILayout.ScrollViewScope(m_ScrollPosition))
             {
+#if UNITY_2019_1_OR_NEWER
+                DrawSerializedObject(target, target);
+#else
                 DrawSerializedObject(target, target, 0);
+#endif
 
                 // Bail on this GUI pass if we've just destroyed the object
                 if (target == null)
