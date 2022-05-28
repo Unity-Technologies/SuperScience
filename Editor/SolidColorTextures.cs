@@ -34,11 +34,15 @@ namespace Unity.Labs.SuperScience
             // TODO: Share code between this window and MissingProjectReferences
             static class Styles
             {
-                internal static readonly GUIStyle ProSkinLineStyle = new GUIStyle
+                internal static readonly GUIStyle LineStyle = new GUIStyle
                 {
                     normal = new GUIStyleState
                     {
+#if UNITY_2019_4_OR_NEWER
                         background = Texture2D.grayTexture
+#else
+                        background = Texture2D.whiteTexture
+#endif
                     }
                 };
             }
@@ -99,9 +103,8 @@ namespace Unity.Labs.SuperScience
                 for (var i = 0; i < length; i++)
                 {
                     var directory = directories[i];
-                    Folder subfolder;
                     var subfolders = folder.m_Subfolders;
-                    if (!subfolders.TryGetValue(directory, out subfolder))
+                    if (!subfolders.TryGetValue(directory, out var subfolder))
                     {
                         subfolder = new Folder();
                         subfolders[directory] = subfolder;
@@ -168,7 +171,7 @@ namespace Unity.Labs.SuperScience
                 using (new GUILayout.HorizontalScope())
                 {
                     GUILayout.Space(EditorGUI.indentLevel * k_IndentAmount);
-                    GUILayout.Box(GUIContent.none, Styles.ProSkinLineStyle, GUILayout.Height(k_SeparatorLineHeight), GUILayout.ExpandWidth(true));
+                    GUILayout.Box(GUIContent.none, Styles.LineStyle, GUILayout.Height(k_SeparatorLineHeight), GUILayout.ExpandWidth(true));
                 }
 
                 EditorGUILayout.Separator();
@@ -379,6 +382,7 @@ namespace Unity.Labs.SuperScience
             }
 
             m_ParentFolder.SortContentsRecursively();
+            Repaint();
         }
 
         /// <summary>
@@ -390,6 +394,8 @@ namespace Unity.Labs.SuperScience
         {
             m_ScanCount = textureAssets.Count;
             m_ScanProgress = 0;
+
+            // We will have to repeat the scan multiple times because the preview utility works asynchronously
             while (m_ScanProgress < m_ScanCount)
             {
                 var remainingTextureAssets = new Dictionary<string, Texture2D>(textureAssets);
@@ -471,8 +477,7 @@ namespace Unity.Labs.SuperScience
         /// <param name="textureAsset">The texture asset loaded from the AssetDatabase.</param>
         void CheckForSolidColorTexture(string path, Texture2D texture, Texture2D textureAsset)
         {
-            int colorValue;
-            if (IsSolidColorTexture(texture, out colorValue))
+            if (IsSolidColorTexture(texture, out var colorValue))
             {
                 m_ParentFolder.AddTextureAtPath(path, textureAsset);
                 GetOrCreateRowForColor(colorValue).textures.Add(textureAsset);
