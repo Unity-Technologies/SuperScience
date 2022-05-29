@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using UnityEditor;
+using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -29,15 +29,12 @@ namespace Unity.Labs.SuperScience
             const int k_SeparatorLineHeight = 1;
 
             readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
-            readonly List<(string, GameObject, SortedSet<int>, SortedSet<int>)> m_Prefabs = new List<(string, GameObject, SortedSet<int>, SortedSet<int>)>();
+            readonly List<PrefabRow> m_Prefabs = new List<PrefabRow>();
             readonly SortedDictionary<int, int> m_TotalCountPerLayer = new SortedDictionary<int, int>();
             readonly SortedDictionary<int, int> m_TotalWithoutLayerMasksPerLayer = new SortedDictionary<int, int>();
             int m_TotalCount;
             int m_TotalWithoutLayerMasks;
             bool m_Visible;
-
-            // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
-            static readonly StringBuilder k_StringBuilder = new StringBuilder();
 
             /// <summary>
             /// Clear the contents of this container.
@@ -55,14 +52,10 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// Add a texture to this folder at a given path.
             /// </summary>
-            /// <param name="path">The path of the texture.</param>
-            /// <param name="prefabAsset">The prefab to add.</param>
-            /// <param name="gameObjectLayers">List of layers used by GameObjects in this prefab</param>
-            /// <param name="layerMaskLayers">List of layers used by LayerMask fields in this prefab</param>
-            public void AddPrefabAtPath(string path, GameObject prefabAsset, SortedSet<int> gameObjectLayers, SortedSet<int> layerMaskLayers)
+            public void AddPrefab(PrefabRow prefabRow)
             {
-                var folder = GetOrCreateFolderForAssetPath(path, gameObjectLayers, layerMaskLayers);
-                folder.m_Prefabs.Add((path, prefabAsset, gameObjectLayers, layerMaskLayers));
+                var folder = GetOrCreateFolderForAssetPath(prefabRow);
+                folder.m_Prefabs.Add(prefabRow);
             }
 
             /// <summary>
@@ -72,14 +65,14 @@ namespace Unity.Labs.SuperScience
             /// Every time a folder is accessed, its Count property is incremented to indicate that it contains one
             /// more solid color texture.
             /// </summary>
-            /// <param name="path">Path to a solid color texture relative to this folder.</param>
-            /// <param name="gameObjectLayers">The GameObject layers for the object which will be added to this folder when it is created (used to aggregate layer counts)</param>
-            /// <param name="layerMaskLayers">The LayerMask layers for the object which will be added to this folder when it is created (used to aggregate layer counts)</param>
+            /// <param name="prefabRow">A <see cref="PrefabRow"/> struct containing the prefab asset reference and its metadata</param>
             /// <returns>The folder object corresponding to the folder containing the texture at the given path.</returns>
-            Folder GetOrCreateFolderForAssetPath(string path, SortedSet<int> gameObjectLayers, SortedSet<int> layerMaskLayers)
+            Folder GetOrCreateFolderForAssetPath(PrefabRow prefabRow)
             {
-                var directories = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var directories = prefabRow.Path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var folder = this;
+                var gameObjectLayers = prefabRow.GameObjectLayers;
+                var layerMaskLayers = prefabRow.LayerMaskLayers;
                 folder.AggregateCount(gameObjectLayers, layerMaskLayers);
                 var length = directories.Length - 1;
                 for (var i = 0; i < length; i++)
@@ -134,12 +127,13 @@ namespace Unity.Labs.SuperScience
                     }
 
                     var showedPrefab = false;
-                    foreach (var (_, prefab, gameObjectLayers, layerMaskLayers) in m_Prefabs)
+                    foreach (var prefabRow in m_Prefabs)
                     {
+                        var gameObjectLayers = prefabRow.GameObjectLayers;
+                        var layerMaskLayers = prefabRow.LayerMaskLayers;
                         if (layerFilter == k_InvalidLayer || gameObjectLayers.Contains(layerFilter) || layerMaskLayers.Contains(layerFilter))
                         {
-                            layerNameList = GetLayerNameList(gameObjectLayers, layerMaskLayers, layerToName, layerFilter, includeLayerMaskFields);
-                            EditorGUILayout.ObjectField($"{prefab.name} ({layerNameList})", prefab, typeof(GameObject), false);
+                            prefabRow.Draw(layerToName, layerFilter, includeLayerMaskFields);
                             showedPrefab = true;
                         }
                     }
@@ -147,40 +141,6 @@ namespace Unity.Labs.SuperScience
                     if (showedPrefab)
                         DrawLineSeparator();
                 }
-            }
-
-            static string GetLayerNameList(IEnumerable<int> gameObjectLayers, IEnumerable<int> layerMaskLayers,
-                Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
-            {
-                if (layerFilter >= 0)
-                {
-                    layerToName.TryGetValue(layerFilter, out var layerName);
-                    if (string.IsNullOrEmpty(layerName))
-                        layerName = layerFilter.ToString();
-
-                    return layerName;
-                }
-
-                k_StringBuilder.Length = 0;
-                k_LayerUnionHashSet.Clear();
-                k_LayerUnionHashSet.UnionWith(gameObjectLayers);
-                if (includeLayerMaskFields)
-                    k_LayerUnionHashSet.UnionWith(layerMaskLayers);
-
-                foreach (var layer in k_LayerUnionHashSet)
-                {
-                    layerToName.TryGetValue(layer, out var layerName);
-                    if (string.IsNullOrEmpty(layerName))
-                        layerName = layer.ToString();
-
-                    k_StringBuilder.Append($"{layerName}, ");
-                }
-
-                // Remove the last ", ". If we didn't add any layers, the StringBuilder will be empty so skip this step
-                if (k_StringBuilder.Length >= 2)
-                    k_StringBuilder.Length -= 2;
-
-                return k_StringBuilder.ToString();
             }
 
             /// <summary>
@@ -216,7 +176,7 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             public void SortContentsRecursively()
             {
-                m_Prefabs.Sort((a, b) => a.Item2.name.CompareTo(b.Item2.name));
+                m_Prefabs.Sort((a, b) => a.PrefabAsset.name.CompareTo(b.PrefabAsset.name));
                 foreach (var kvp in m_Subfolders)
                 {
                     kvp.Value.SortContentsRecursively();
@@ -270,6 +230,132 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        class PrefabRow
+        {
+            public string Path;
+            public GameObject PrefabAsset;
+            public SortedSet<int> GameObjectLayers;
+            public SortedSet<int> LayerMaskLayers;
+            public List<GameObjectRow> LayerUsers;
+            public int LayerUsersWithoutLayerMasks;
+
+            bool m_Expanded;
+
+            public void Draw(Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
+            {
+                var layerNameList = GetLayerNameList(GameObjectLayers, LayerMaskLayers, layerToName, layerFilter, includeLayerMaskFields);
+                var label = $"{PrefabAsset.name} {{{layerNameList}}}";
+                if (includeLayerMaskFields && LayerUsers.Count > 0 || LayerUsersWithoutLayerMasks > 0)
+                {
+                    m_Expanded = EditorGUILayout.Foldout(m_Expanded, label, true);
+                    EditorGUILayout.ObjectField(PrefabAsset, typeof(GameObject), false);
+                }
+                else
+                {
+                    EditorGUILayout.ObjectField(label, PrefabAsset, typeof(GameObject), false);
+                }
+
+                if (!m_Expanded)
+                    return;
+
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foreach (var layerUser in LayerUsers)
+                    {
+                        if (layerFilter != k_InvalidLayer)
+                        {
+                            var gameObjectLayerMatchesFilter = layerUser.PrefabGameObject.layer == layerFilter;
+                            var layerMasksMatchFilter = includeLayerMaskFields && layerUser.LayerMaskLayers.Contains(layerFilter);
+                            if (!(gameObjectLayerMatchesFilter || layerMasksMatchFilter))
+                                continue;
+                        }
+
+                        layerUser.Draw(layerToName, layerFilter, includeLayerMaskFields);
+                    }
+                }
+            }
+        }
+
+        class GameObjectRow
+        {
+            public string TransformPath;
+            public GameObject PrefabGameObject;
+            public List<ComponentRow> LayerMaskComponents;
+            public SortedSet<int> LayerMaskLayers;
+
+            bool m_Expanded;
+
+            public void Draw(Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
+            {
+                var layer = PrefabGameObject.layer;
+                var layerName = GetLayerNameString(layerToName, layer);
+
+                k_StringBuilder.Length = 0;
+                k_StringBuilder.Append($"{TransformPath} - Layer: {layerName}");
+                if (includeLayerMaskFields && LayerMaskLayers.Count > 0)
+                {
+                    var layerNameList = GetLayerNameList(LayerMaskLayers, layerToName, layerFilter);
+                    k_StringBuilder.Append($" LayerMasks:{{{layerNameList}}}");
+                }
+
+                var label = k_StringBuilder.ToString();
+
+                if (includeLayerMaskFields && GetComponentCount(layerFilter) > 0)
+                {
+                    m_Expanded = EditorGUILayout.Foldout(m_Expanded, label, true);
+                    EditorGUILayout.ObjectField(PrefabGameObject, typeof(GameObject), true);
+                }
+                else
+                {
+                    EditorGUILayout.ObjectField(label, PrefabGameObject, typeof(GameObject), true);
+                }
+
+                if (!m_Expanded || !includeLayerMaskFields)
+                    return;
+
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foreach (var component in LayerMaskComponents)
+                    {
+                        if (layerFilter != k_InvalidLayer && !component.UsedLayers.Contains(layerFilter))
+                            continue;
+
+                        component.Draw(layerToName, layerFilter);
+                    }
+                }
+            }
+
+            int GetComponentCount(int layerFilter = k_InvalidLayer)
+            {
+                if (layerFilter == k_InvalidLayer)
+                    return LayerMaskComponents.Count;
+
+                var count = 0;
+                foreach (var component in LayerMaskComponents)
+                {
+                    if (component.UsedLayers.Contains(layerFilter))
+                        count++;
+                }
+
+                return count;
+            }
+        }
+
+        struct ComponentRow
+        {
+            public Component PrefabComponent;
+            public SortedSet<int> UsedLayers;
+
+            public void Draw(Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer)
+            {
+                using (new GUILayout.HorizontalScope())
+                {
+                    var layerNameList = GetLayerNameList(UsedLayers, layerToName, layerFilter);
+                    EditorGUILayout.ObjectField($"{PrefabComponent.name} ({PrefabComponent.GetType().Name}) {{{layerNameList}}}", PrefabComponent, typeof(Component), true);
+                }
+            }
+        }
+
         static class Styles
         {
             internal static readonly GUIStyle ActiveFilterButton = new GUIStyle(GUI.skin.button)
@@ -296,15 +382,16 @@ namespace Unity.Labs.SuperScience
             };
         }
 
-        struct FilterRow
+        class FilterRow
         {
-            public HashSet<GameObject> AllUsers;
-            public HashSet<GameObject> UsersWithoutLayerMasks;
+            public readonly HashSet<GameObject> AllUsers = new HashSet<GameObject>();
+            public readonly HashSet<GameObject> UsersWithoutLayerMasks = new HashSet<GameObject>();
         }
 
         const string k_NoMissingReferences = "No prefabs using a non-default layer";
         const string k_ProjectFolderName = "Project";
         const int k_FilterPanelWidth = 180;
+        const int k_ObjectFieldWidth = 150;
         const string k_WindowTitle = "Prefab Layer Users";
         const string k_Instructions = "Click the Scan button to scan your project for users of non-default layers. WARNING: " +
             "This will load every prefab in your project. For large projects, this may take a long time and/or crash the Editor.";
@@ -317,6 +404,7 @@ namespace Unity.Labs.SuperScience
             "Include layers from layer mask fields in the results. This is only possible if there is at least one layer without a name.");
 
         static readonly GUIContent k_ScanGUIContent = new GUIContent("Scan", "Scan the project for users of non-default layers");
+        static readonly GUIContent k_CancelGUIContent = new GUIContent("Cancel", "Cancel the current scan");
         static readonly GUILayoutOption k_LayerPanelWidthOption = GUILayout.Width(k_FilterPanelWidth);
         static readonly Vector2 k_MinSize = new Vector2(400, 200);
 
@@ -340,13 +428,15 @@ namespace Unity.Labs.SuperScience
         int m_LayerFilter = k_InvalidLayer;
 
         // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
+        static readonly StringBuilder k_StringBuilder = new StringBuilder(4096);
         static readonly List<Component> k_Components = new List<Component>();
         static readonly SortedSet<int> k_LayerUnionHashSet = new SortedSet<int>();
+        static readonly Stack<string> k_TransformPathStack = new Stack<string>();
 
         /// <summary>
         /// Initialize the window
         /// </summary>
-        [MenuItem("Window/SuperScience/Layer Users")]
+        [MenuItem("Window/SuperScience/Prefab Layer Users")]
         static void Init()
         {
             GetWindow<PrefabLayerUsers>(k_WindowTitle).Show();
@@ -359,10 +449,25 @@ namespace Unity.Labs.SuperScience
             m_ScanProgress = 0;
         }
 
+        void OnDisable()
+        {
+            m_ScanEnumerator = null;
+        }
+
         void OnGUI()
         {
-            if (GUILayout.Button(k_ScanGUIContent))
-                Scan();
+            EditorGUIUtility.labelWidth = position.width - k_FilterPanelWidth - k_ObjectFieldWidth;
+
+            if (m_ScanEnumerator == null)
+            {
+                if (GUILayout.Button(k_ScanGUIContent))
+                    Scan();
+            }
+            else
+            {
+                if (GUILayout.Button(k_CancelGUIContent))
+                    m_ScanEnumerator = null;
+            }
 
             // If m_LayerToName hasn't been set up, we haven't scanned yet
             // This dictionary will always at least include the built-in layer names
@@ -422,7 +527,7 @@ namespace Unity.Labs.SuperScience
             using (var scrollView = new GUILayout.ScrollViewScope(m_ColorListScrollPosition))
             {
                 m_ColorListScrollPosition = scrollView.scrollPosition;
-                foreach (var kvp in m_LayerToName)
+                foreach (var kvp in m_FilterRows)
                 {
                     var layer =  kvp.Key;
 
@@ -430,14 +535,11 @@ namespace Unity.Labs.SuperScience
                     if (layer == 0)
                         continue;
 
-                    m_LayerToName.TryGetValue(layer, out var layerName);
-                    if (string.IsNullOrEmpty(layerName))
-                        layerName = layer.ToString();
-
                     count = 0;
                     if (m_FilterRows.TryGetValue(layer, out var filterRow))
                         count = m_IncludeLayerMaskFields ? filterRow.AllUsers.Count : filterRow.UsersWithoutLayerMasks.Count;
 
+                    var layerName = GetLayerNameString(m_LayerToName, layer);
                     style = m_LayerFilter == layer ? Styles.ActiveFilterButton : Styles.InactiveFilterButton;
                     if (GUILayout.Button($"{layer}: {layerName} ({count})", style))
                         m_LayerFilter = layer;
@@ -473,13 +575,13 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         /// <param name="prefabAssets">Prefab assets to scan.</param>
         /// <returns>IEnumerator used to run the coroutine.</returns>
-        IEnumerator ProcessScan(Dictionary<string, GameObject> prefabAssets)
+        IEnumerator ProcessScan(List<(string, GameObject)> prefabAssets)
         {
             m_ScanCount = prefabAssets.Count;
             m_ScanProgress = 0;
-            foreach (var kvp in prefabAssets)
+            foreach (var (path, prefabAsset) in prefabAssets)
             {
-                FindLayerUsersInPrefab(kvp.Key, kvp.Value);
+                FindLayerUsersInPrefab(path, prefabAsset);
                 m_ScanProgress++;
                 yield return null;
             }
@@ -492,10 +594,28 @@ namespace Unity.Labs.SuperScience
         {
             var gameObjectLayers = new SortedSet<int>();
             var layerMaskLayers = new SortedSet<int>();
-            FindLayerUsersRecursively(prefabAsset, gameObjectLayers, layerMaskLayers);
+            var layerUsers = new List<GameObjectRow>();
+            var layerUsersWithoutLayerMasks = 0;
+
+            var prefabRoot = prefabAsset;
+            var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (prefabStage != null && prefabStage.assetPath == path)
+                prefabRoot = prefabStage.prefabContentsRoot;
+
+            FindLayerUsersRecursively(prefabRoot, gameObjectLayers, layerMaskLayers, layerUsers, ref layerUsersWithoutLayerMasks);
             if (gameObjectLayers.Count > 0 || layerMaskLayers.Count > 0)
             {
-                m_ParentFolder.AddPrefabAtPath(path, prefabAsset, gameObjectLayers, layerMaskLayers);
+                var prefabRow = new PrefabRow
+                {
+                    Path = path,
+                    PrefabAsset = prefabAsset,
+                    GameObjectLayers = gameObjectLayers,
+                    LayerMaskLayers = layerMaskLayers,
+                    LayerUsers = layerUsers,
+                    LayerUsersWithoutLayerMasks = layerUsersWithoutLayerMasks
+                };
+
+                m_ParentFolder.AddPrefab(prefabRow);
                 k_LayerUnionHashSet.Clear();
                 k_LayerUnionHashSet.UnionWith(gameObjectLayers);
                 k_LayerUnionHashSet.UnionWith(layerMaskLayers);
@@ -513,11 +633,19 @@ namespace Unity.Labs.SuperScience
             }
         }
 
-        void FindLayerUsersRecursively(GameObject gameObject, SortedSet<int> gameObjectLayers, SortedSet<int> layerMaskLayers)
+        void FindLayerUsersRecursively(GameObject gameObject, SortedSet<int> prefabGameObjectLayers, SortedSet<int> prefabLayerMaskLayers, List<GameObjectRow> layerUsers, ref int layerUsersWithoutLayerMasks)
         {
+            var isLayerUser = false;
             var layer = gameObject.layer;
             if (layer != 0)
-                gameObjectLayers.Add(layer);
+            {
+                isLayerUser = true;
+                prefabGameObjectLayers.Add(layer);
+                layerUsersWithoutLayerMasks++;
+            }
+
+            var layerMaskLayers = new SortedSet<int>();
+            var componentRows = new List<ComponentRow>();
 
             // GetComponents will clear the list, so we don't have to
             gameObject.GetComponents(k_Components);
@@ -525,39 +653,66 @@ namespace Unity.Labs.SuperScience
             {
                 var serializedObject = new SerializedObject(component);
                 var iterator = serializedObject.GetIterator();
+                var componentUsesLayers = false;
+                var usedLayers = new SortedSet<int>();
                 while (iterator.Next(true))
                 {
                     if (iterator.propertyType != SerializedPropertyType.LayerMask)
                         continue;
 
-                    GetLayersFromLayerMask(layerMaskLayers, iterator.intValue);
+                    componentUsesLayers |= GetLayersFromLayerMask(usedLayers, iterator.intValue);
+                }
+
+                isLayerUser |= componentUsesLayers;
+
+                if (componentUsesLayers)
+                {
+                    prefabLayerMaskLayers.UnionWith(usedLayers);
+                    layerMaskLayers.UnionWith(usedLayers);
+                    componentRows.Add(new ComponentRow
+                    {
+                        PrefabComponent = component,
+                        UsedLayers = usedLayers
+                    });
                 }
             }
 
             // Clear the list after we're done to avoid lingering references
             k_Components.Clear();
 
+            if (isLayerUser)
+            {
+                layerUsers.Add(new GameObjectRow
+                {
+                    TransformPath = GetTransformPath(gameObject.transform),
+                    PrefabGameObject = gameObject,
+                    LayerMaskComponents = componentRows,
+                    LayerMaskLayers = layerMaskLayers
+                });
+            }
+
             foreach (Transform child in gameObject.transform)
             {
-                FindLayerUsersRecursively(child.gameObject, gameObjectLayers, layerMaskLayers);
+                FindLayerUsersRecursively(child.gameObject, prefabGameObjectLayers, prefabLayerMaskLayers, layerUsers, ref layerUsersWithoutLayerMasks);
             }
         }
 
-        void GetLayersFromLayerMask(SortedSet<int> layers, int layerMask)
+        bool GetLayersFromLayerMask(SortedSet<int> layers, int layerMask)
         {
             // If all layers are named, it is not possible to infer whether layer mask fields "use" a layer
             if (m_LayerWithNoName == k_InvalidLayer)
-                return;
+                return false;
 
             // Exclude the special cases where every layer is included or excluded
             if (layerMask == k_InvalidLayer || layerMask == 0)
-                return;
+                return false;
 
             // Depending on whether or not the mask started out as "Everything" or "Nothing", a layer will count as "used" when the user toggles its state.
             // We use the layer without a name to check whether or not the starting point is "Everything" or "Nothing." If this layer's bit is 0, we assume
             // the mask started with "Nothing." Otherwise, if its bit is 1, we assume the mask started with "Everything."
             var defaultValue = (layerMask & 1 << m_LayerWithNoName) != 0;
 
+            var isLayerMaskUser = false;
             foreach (var kvp in m_LayerToName)
             {
                 var layer = kvp.Key;
@@ -568,8 +723,13 @@ namespace Unity.Labs.SuperScience
 
                 // We compare (using xor) this layer's bit value with the default value. If they are different, the layer counts as "used."
                 if ((layerMask & (1 << layer)) != 0 ^ defaultValue)
+                {
+                    isLayerMaskUser = true;
                     layers.Add(layer);
+                }
             }
+
+            return isLayerMaskUser;
         }
 
         /// <summary>
@@ -590,16 +750,21 @@ namespace Unity.Labs.SuperScience
             {
                 var layerName = LayerMask.LayerToName(i);
                 if (!string.IsNullOrEmpty(layerName))
+                {
                     m_LayerToName.Add(i, layerName);
+                    m_FilterRows.Add(i, new FilterRow());
+                }
                 else
+                {
                     m_LayerWithNoName = i;
+                }
             }
 
             // LayerMask field scanning requires at least one layer without a name
             if (m_LayerWithNoName == k_InvalidLayer)
                 m_IncludeLayerMaskFields = false;
 
-            var prefabAssets = new Dictionary<string, GameObject>();
+            var prefabAssets = new List<(string, GameObject)>();
             foreach (var guid in guids)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
@@ -616,7 +781,7 @@ namespace Unity.Labs.SuperScience
                     continue;
                 }
 
-                prefabAssets.Add(path, prefab);
+                prefabAssets.Add((path, prefab));
             }
 
             m_ScanEnumerator = ProcessScan(prefabAssets);
@@ -633,14 +798,70 @@ namespace Unity.Labs.SuperScience
             if (m_FilterRows.TryGetValue(layer, out var filterRow))
                 return filterRow;
 
-            filterRow = new FilterRow
-            {
-                AllUsers = new HashSet<GameObject>(),
-                UsersWithoutLayerMasks = new HashSet<GameObject>()
-            };
-
+            filterRow = new FilterRow();
             m_FilterRows[layer] = filterRow;
             return filterRow;
+        }
+
+        static string GetLayerNameList(IEnumerable<int> gameObjectLayers, IEnumerable<int> layerMaskLayers,
+            Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
+        {
+            k_StringBuilder.Length = 0;
+            k_LayerUnionHashSet.Clear();
+            k_LayerUnionHashSet.UnionWith(gameObjectLayers);
+            if (includeLayerMaskFields)
+                k_LayerUnionHashSet.UnionWith(layerMaskLayers);
+
+            return GetLayerNameList(k_LayerUnionHashSet, layerToName, layerFilter);
+        }
+
+        static string GetLayerNameList(IEnumerable<int> layers, Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer)
+        {
+            if (layerFilter >= 0)
+                return GetLayerNameString(layerToName, layerFilter);
+
+            k_StringBuilder.Length = 0;
+            foreach (var layer in layers)
+            {
+                k_StringBuilder.Append($"{GetLayerNameString(layerToName, layer)}, ");
+            }
+
+            // Remove the last ", ". If we didn't add any layers, the StringBuilder will be empty so skip this step
+            if (k_StringBuilder.Length >= 2)
+                k_StringBuilder.Length -= 2;
+
+            return k_StringBuilder.ToString();
+        }
+
+        static string GetLayerNameString(Dictionary<int, string> layerToName, int layer)
+        {
+            layerToName.TryGetValue(layer, out var layerName);
+            if (string.IsNullOrEmpty(layerName))
+                layerName = layer.ToString();
+            return layerName;
+        }
+
+        static string GetTransformPath(Transform transform)
+        {
+            if (transform.parent == null)
+                return transform.name;
+
+            k_TransformPathStack.Clear();
+            while (transform != null)
+            {
+                k_TransformPathStack.Push(transform.name);
+                transform = transform.parent;
+            }
+
+            k_StringBuilder.Length = 0;
+            while (k_TransformPathStack.Count > 0)
+            {
+                k_StringBuilder.Append(k_TransformPathStack.Pop());
+                k_StringBuilder.Append("/");
+            }
+
+            k_StringBuilder.Length -= 1;
+            return k_StringBuilder.ToString();
         }
     }
 }
