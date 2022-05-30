@@ -16,6 +16,9 @@ namespace Unity.Labs.SuperScience
         public const float RayLength = 100f;
         const float k_RayWidth = 0.001f;
 
+        static readonly int k_Color = Shader.PropertyToID("_Color");
+        static readonly int k_Edge = Shader.PropertyToID("_Edge");
+
 #pragma warning disable 649
         [SerializeField]
         [Tooltip("Default sphere mesh used for drawing gizmo spheres.")]
@@ -38,15 +41,9 @@ namespace Unity.Labs.SuperScience
 
         MaterialPropertyBlock m_GizmoProperties;
 
-        public Material gizmoMaterial
-        {
-            get { return m_GizmoMaterial; }
-        }
+        public Material gizmoMaterial => m_GizmoMaterial;
 
-        public Material gizmoCutoffMaterial
-        {
-            get { return m_GizmoCutoffMaterial; }
-        }
+        public Material gizmoCutoffMaterial => m_GizmoCutoffMaterial;
 
         void Awake()
         {
@@ -68,8 +65,8 @@ namespace Unity.Labs.SuperScience
                 return;
 
             direction.Normalize();
-            m_GizmoProperties.SetColor("_Color", color);
-            
+            m_GizmoProperties.SetColor(k_Color, color);
+
             var rayPosition = origin + direction * rayLength * 0.5f;
             var rayRotation = Quaternion.LookRotation(direction);
             var rayWidth = k_RayWidth * viewerScale;
@@ -87,7 +84,7 @@ namespace Unity.Labs.SuperScience
         /// <param name="color">What color to draw the sphere with</param>
         public void DrawSphere(Vector3 center, float radius, Color color)
         {
-            m_GizmoProperties.SetColor("_Color", color);
+            m_GizmoProperties.SetColor(k_Color, color);
 
             var sphereMatrix = Matrix4x4.TRS(center, Quaternion.identity, Vector3.one * radius);
             Graphics.DrawMesh(m_SphereMesh, sphereMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
@@ -102,7 +99,7 @@ namespace Unity.Labs.SuperScience
         /// <param name="color">What color to draw the cube with</param>
         public void DrawCube(Vector3 position, Quaternion rotation, Vector3 scale, Color color)
         {
-            m_GizmoProperties.SetColor("_Color", color);
+            m_GizmoProperties.SetColor(k_Color, color);
 
             var cubeMatrix = Matrix4x4.TRS(position, rotation, scale);
             Graphics.DrawMesh(m_CubeMesh, cubeMatrix, m_GizmoMaterial, 0, null, 0, m_GizmoProperties);
@@ -111,15 +108,15 @@ namespace Unity.Labs.SuperScience
         /// <summary>
         ///  Draws a wedge for a single frame in all camera views
         /// </summary>
-        /// <param name="position"></param>
-        /// <param name="rotation"></param>
-        /// <param name="radius"></param>
-        /// <param name="angle"></param>
-        /// <param name="color"></param>
+        /// <param name="position">The position where the wedge should be drawn.</param>
+        /// <param name="rotation">The rotation at which the wedge should be drawn.</param>
+        /// <param name="radius">The radius of the wedge.</param>
+        /// <param name="angle">The angle of the wedge "slice."</param>
+        /// <param name="color">The color of the wedge</param>
         public void DrawWedge(Vector3 position, Quaternion rotation, float radius, float angle, Color color)
         {
-            m_GizmoProperties.SetColor("_Color", color);
-            m_GizmoProperties.SetFloat("_Edge", 1.0f -  (angle / 360.0f));
+            m_GizmoProperties.SetColor(k_Color, color);
+            m_GizmoProperties.SetFloat(k_Edge, 1.0f -  angle / 360.0f);
 
             var wedgeMatrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
             Graphics.DrawMesh(m_QuadMesh, wedgeMatrix, m_GizmoCutoffMaterial, 0, null, 0, m_GizmoProperties);
