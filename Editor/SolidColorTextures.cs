@@ -15,15 +15,6 @@ namespace Unity.Labs.SuperScience
     public class SolidColorTextures : EditorWindow
     {
         /// <summary>
-        /// Container for unique color rows.
-        /// </summary>
-        class ColorRow
-        {
-            public bool expanded;
-            public readonly List<Texture2D> textures = new List<Texture2D>();
-        }
-
-        /// <summary>
         /// Tree structure for folder scan results.
         /// This is the root object for the project scan, and represents the results in a hierarchy that matches the
         /// project's folder structure for an easy to read presentation of solid color textures.
@@ -31,23 +22,7 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         class Folder
         {
-            // TODO: Share code between this window and MissingProjectReferences
-            static class Styles
-            {
-                internal static readonly GUIStyle LineStyle = new GUIStyle
-                {
-                    normal = new GUIStyleState
-                    {
-#if UNITY_2019_4_OR_NEWER
-                        background = Texture2D.grayTexture
-#else
-                        background = Texture2D.whiteTexture
-#endif
-                    }
-                };
-            }
-
-            const string k_LabelFormat = "{0}: {1}";
+            // TODO: Share code between this window and others that display a folder structure
             const int k_ShrunkTextureSize = 32;
             const int k_IndentAmount = 15;
             const int k_SeparatorLineHeight = 1;
@@ -62,7 +37,7 @@ namespace Unity.Labs.SuperScience
             /// <summary>
             /// The number of solid color textures in this folder.
             /// </summary>
-            public int Count;
+            public int Count { get; private set; }
 
             /// <summary>
             /// Clear the contents of this container.
@@ -126,7 +101,7 @@ namespace Unity.Labs.SuperScience
                 var wasVisible = m_Visible;
                 using (new GUILayout.HorizontalScope())
                 {
-                    m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format(k_LabelFormat, name, Count), true);
+                    m_Visible = EditorGUILayout.Foldout(m_Visible, $"{name}: {Count}", true);
                     if (GUILayout.Button(k_ShrinkAllGUIContent, k_ShrinkAllWidth))
                         ShrinkAndFinalize();
                 }
@@ -239,7 +214,7 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             public void SortContentsRecursively()
             {
-                m_Textures.Sort((a, b) => a.Item2.name.CompareTo(b.Item2.name));
+                m_Textures.Sort((a, b) => a.Item1.CompareTo(b.Item1));
                 foreach (var kvp in m_Subfolders)
                 {
                     kvp.Value.SortContentsRecursively();
@@ -247,11 +222,36 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        /// <summary>
+        /// Container for unique color rows.
+        /// </summary>
+        class ColorRow
+        {
+            public bool expanded;
+            public readonly List<Texture2D> textures = new List<Texture2D>();
+        }
+
+        static class Styles
+        {
+            internal static readonly GUIStyle LineStyle = new GUIStyle
+            {
+                normal = new GUIStyleState
+                {
+#if UNITY_2019_4_OR_NEWER
+                        background = Texture2D.grayTexture
+#else
+                    background = Texture2D.whiteTexture
+#endif
+                }
+            };
+        }
+
+        const string k_MenuItemName = "Window/SuperScience/Solid Color Textures";
+        const string k_WindowTitle = "Solid Color Textures";
         const string k_NoMissingReferences = "No solid color textures";
         const string k_ProjectFolderName = "Project";
         const int k_TextureColumnWidth = 150;
         const int k_ColorPanelWidth = 150;
-        const string k_WindowTitle = "Solid Color Textures";
         const string k_Instructions = "Click the Scan button to scan your project for solid color textures. WARNING: " +
             "This will load every texture in your project. For large projects, this may take a long time and/or crash the Editor.";
         const string k_ScanFilter = "t:Texture2D";
@@ -259,6 +259,7 @@ namespace Unity.Labs.SuperScience
         const int k_MaxScanUpdateTimeMilliseconds = 50;
 
         static readonly GUIContent k_ScanGUIContent = new GUIContent("Scan", "Scan the project for solid color textures");
+        static readonly GUIContent k_CancelGUIContent = new GUIContent("Cancel", "Cancel the current scan");
 
         static readonly GUILayoutOption k_ColorPanelWidthOption = GUILayout.Width(k_ColorPanelWidth);
         static readonly GUILayoutOption k_ColorSwatchWidthOption = GUILayout.Width(30);
@@ -270,8 +271,8 @@ namespace Unity.Labs.SuperScience
         Vector2 m_ColorListScrollPosition;
         Vector2 m_FolderTreeScrollPosition;
         readonly Folder m_ParentFolder = new Folder();
-        readonly Dictionary<int, ColorRow> m_TexturesByColor = new Dictionary<int, ColorRow>();
-        static readonly string[] k_ScanFolders = new[] {"Assets", "Packages"};
+        readonly SortedDictionary<int, ColorRow> m_TexturesByColor = new SortedDictionary<int, ColorRow>();
+        static readonly string[] k_ScanFolders = {"Assets", "Packages"};
         int m_ScanCount;
         int m_ScanProgress;
         IEnumerator m_ScanEnumerator;
@@ -279,7 +280,7 @@ namespace Unity.Labs.SuperScience
         /// <summary>
         /// Initialize the window
         /// </summary>
-        [MenuItem("Window/SuperScience/Solid Color Textures")]
+        [MenuItem(k_MenuItemName)]
         static void Init()
         {
             GetWindow<SolidColorTextures>(k_WindowTitle).Show();
@@ -292,14 +293,25 @@ namespace Unity.Labs.SuperScience
             m_ScanProgress = 0;
         }
 
+        void OnDisable()
+        {
+            m_ScanEnumerator = null;
+        }
+
         void OnGUI()
         {
             EditorGUIUtility.labelWidth = position.width - k_TextureColumnWidth - k_ColorPanelWidth;
 
-            var rect = GUILayoutUtility.GetRect(0, float.PositiveInfinity, k_ProgressBarHeight, k_ProgressBarHeight);
-            EditorGUI.ProgressBar(rect, (float)m_ScanProgress / m_ScanCount, $"{m_ScanProgress} / {m_ScanCount}");
-            if (GUILayout.Button(k_ScanGUIContent))
-                Scan();
+            if (m_ScanEnumerator == null)
+            {
+                if (GUILayout.Button(k_ScanGUIContent))
+                    Scan();
+            }
+            else
+            {
+                if (GUILayout.Button(k_CancelGUIContent))
+                    m_ScanEnumerator = null;
+            }
 
             if (m_ParentFolder.Count == 0)
             {
@@ -327,6 +339,12 @@ namespace Unity.Labs.SuperScience
                         m_ParentFolder.Draw(k_ProjectFolderName);
                     }
                 }
+            }
+
+            if (m_ScanCount > 0 && m_ScanCount - m_ScanProgress > 0)
+            {
+                var rect = GUILayoutUtility.GetRect(0, float.PositiveInfinity, k_ProgressBarHeight, k_ProgressBarHeight);
+                EditorGUI.ProgressBar(rect, (float) m_ScanProgress / m_ScanCount, $"{m_ScanProgress} / {m_ScanCount}");
             }
         }
 
@@ -499,7 +517,7 @@ namespace Unity.Labs.SuperScience
                 return false;
             }
 
-            var pixels = texture.GetPixels32();
+            var pixels = texture.GetPixels();
 
             // It is unlikely to get a null pixels array, but we should check just in case
             if (pixels == null)
@@ -521,7 +539,7 @@ namespace Unity.Labs.SuperScience
             // Convert to int for faster comparison
             colorValue = Color32ToInt.Convert(pixels[0]);
             var isSolidColor = true;
-            for (var i = 0; i < pixelCount; i++)
+            for (var i = 1; i < pixelCount; i++)
             {
                 var pixel = Color32ToInt.Convert(pixels[i]);
                 if (pixel != colorValue)
