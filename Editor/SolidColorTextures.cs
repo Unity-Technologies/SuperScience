@@ -174,7 +174,7 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             void ShrinkAllTexturesRecursively()
             {
-                foreach (var (path, _) in  m_Textures)
+                foreach (var (path, _) in m_Textures)
                 {
                     var importer = AssetImporter.GetAtPath(path);
                     if (importer == null)
@@ -238,7 +238,7 @@ namespace Unity.Labs.SuperScience
                 normal = new GUIStyleState
                 {
 #if UNITY_2019_4_OR_NEWER
-                        background = Texture2D.grayTexture
+                    background = Texture2D.grayTexture
 #else
                     background = Texture2D.whiteTexture
 #endif
@@ -281,10 +281,7 @@ namespace Unity.Labs.SuperScience
         /// Initialize the window
         /// </summary>
         [MenuItem(k_MenuItemName)]
-        static void Init()
-        {
-            GetWindow<SolidColorTextures>(k_WindowTitle).Show();
-        }
+        static void Init() { GetWindow<SolidColorTextures>(k_WindowTitle).Show(); }
 
         void OnEnable()
         {
@@ -293,10 +290,7 @@ namespace Unity.Labs.SuperScience
             m_ScanProgress = 0;
         }
 
-        void OnDisable()
-        {
-            m_ScanEnumerator = null;
-        }
+        void OnDisable() { m_ScanEnumerator = null; }
 
         void OnGUI()
         {
