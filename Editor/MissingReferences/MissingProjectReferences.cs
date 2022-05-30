@@ -33,11 +33,19 @@ namespace Unity.Labs.SuperScience
                 const string k_SubAssetsLabelFormat = "Sub-assets: {0}";
 
                 readonly UnityObject m_Object;
+                readonly List<MissingReferencesContainer> m_SubAssets;
+                readonly List<SerializedProperty> m_PropertiesWithMissingReferences;
+
                 bool m_SubAssetsVisible;
-                public readonly List<MissingReferencesContainer> SubAssets = new List<MissingReferencesContainer>();
-                public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
                 public override UnityObject Object => m_Object;
+
+                AssetContainer(UnityObject unityObject, List<MissingReferencesContainer> subAssets, List<SerializedProperty> propertiesWithMissingReferences)
+                {
+                    m_Object = unityObject;
+                    m_SubAssets = subAssets;
+                    m_PropertiesWithMissingReferences = propertiesWithMissingReferences;
+                }
 
                 /// <summary>
                 /// Initialize an AssetContainer to represent the given UnityObject
@@ -47,33 +55,47 @@ namespace Unity.Labs.SuperScience
                 /// <param name="unityObject">The main UnityObject for this asset</param>
                 /// <param name="path">The path to this asset, for gathering sub-assets</param>
                 /// <param name="options">User-configurable options for this view</param>
-                public AssetContainer(UnityObject unityObject, string path, Options options)
+                public static AssetContainer CreateIfNecessary(UnityObject unityObject, string path, Options options)
                 {
-                    m_Object = unityObject;
-                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
+                    var missingReferences = CheckForMissingReferences(unityObject, options);
 
                     // Collect any sub-asset references
+                    List<MissingReferencesContainer> subAssets = null;
                     foreach (var asset in AssetDatabase.LoadAllAssetRepresentationsAtPath(path))
                     {
                         if (asset is GameObject prefab)
                         {
-                            var gameObjectContainer = new GameObjectContainer(prefab, options);
-                            if (gameObjectContainer.Count > 0)
-                                SubAssets.Add(gameObjectContainer);
+                            var gameObjectContainer = GameObjectContainer.CreateIfNecessary(prefab, options);
+                            if (gameObjectContainer != null)
+                            {
+                                subAssets ??= new List<MissingReferencesContainer>();
+                                subAssets.Add(gameObjectContainer);
+                            }
                         }
                         else
                         {
-                            var assetContainer = new AssetContainer(asset, options);
-                            if (assetContainer.PropertiesWithMissingReferences.Count > 0)
-                                SubAssets.Add(assetContainer);
+                            var assetContainer = CreateIfNecessary(asset, options);
+                            if (assetContainer != null)
+                            {
+                                subAssets ??= new List<MissingReferencesContainer>();
+                                subAssets.Add(assetContainer);
+                            }
                         }
                     }
+
+                    if (missingReferences != null || subAssets != null)
+                        return new AssetContainer(unityObject, subAssets, missingReferences);
+
+                    return null;
                 }
 
-                AssetContainer(UnityObject unityObject, Options options)
+                static AssetContainer CreateIfNecessary(UnityObject unityObject, Options options)
                 {
-                    m_Object = unityObject;
-                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
+                    var missingReferences = CheckForMissingReferences(unityObject, options);
+                    if (missingReferences != null)
+                        return new AssetContainer(unityObject, null, missingReferences);
+
+                    return null;
                 }
 
                 /// <summary>
@@ -83,9 +105,9 @@ namespace Unity.Labs.SuperScience
                 {
                     using (new EditorGUI.IndentLevelScope())
                     {
-                        DrawPropertiesWithMissingReferences(PropertiesWithMissingReferences);
+                        DrawPropertiesWithMissingReferences(m_PropertiesWithMissingReferences);
 
-                        var count = SubAssets.Count;
+                        var count = m_SubAssets.Count;
                         if (count == 0)
                             return;
 
@@ -93,7 +115,7 @@ namespace Unity.Labs.SuperScience
                         if (!m_SubAssetsVisible)
                             return;
 
-                        foreach (var asset in SubAssets)
+                        foreach (var asset in m_SubAssets)
                         {
                             asset.Draw();
                         }
@@ -142,14 +164,14 @@ namespace Unity.Labs.SuperScience
                 // Model prefabs may contain materials which we want to scan. The "real prefab" as a sub-asset
                 if (asset is GameObject prefab && PrefabUtility.GetPrefabAssetType(asset) != PrefabAssetType.Model)
                 {
-                    var gameObjectContainer = new GameObjectContainer(prefab, options);
-                    if (gameObjectContainer.Count > 0)
+                    var gameObjectContainer = GameObjectContainer.CreateIfNecessary(prefab, options);
+                    if (gameObjectContainer != null)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(gameObjectContainer);
                 }
                 else
                 {
-                    var assetContainer = new AssetContainer(asset, path, options);
-                    if (assetContainer.PropertiesWithMissingReferences.Count > 0 || assetContainer.SubAssets.Count > 0)
+                    var assetContainer = AssetContainer.CreateIfNecessary(asset, path, options);
+                    if (assetContainer != null)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(assetContainer);
                 }
             }

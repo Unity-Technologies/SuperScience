@@ -26,6 +26,7 @@ namespace Unity.Labs.SuperScience
 
     public class ExampleSceneMetadata : UnityEngine.ScriptableObject
     {
+        public int TotalComponents { get; }
         public ExampleSceneMetadata() {}
         public void UpdateFromScene(UnityEngine.SceneManagement.Scene scene);
     }

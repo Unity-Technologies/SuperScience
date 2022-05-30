@@ -263,7 +263,7 @@ namespace Unity.Labs.SuperScience
                     {
                         if (layerFilter != k_InvalidLayer)
                         {
-                            var gameObjectLayerMatchesFilter = layerUser.PrefabGameObject.layer == layerFilter;
+                            var gameObjectLayerMatchesFilter = layerUser.GameObject.layer == layerFilter;
                             var layerMasksMatchFilter = includeLayerMaskFields && layerUser.LayerMaskLayers.Contains(layerFilter);
                             if (!(gameObjectLayerMatchesFilter || layerMasksMatchFilter))
                                 continue;
@@ -278,7 +278,7 @@ namespace Unity.Labs.SuperScience
         class GameObjectRow
         {
             public string TransformPath;
-            public GameObject PrefabGameObject;
+            public GameObject GameObject;
             public List<ComponentRow> LayerMaskComponents;
             public SortedSet<int> LayerMaskLayers;
 
@@ -286,7 +286,7 @@ namespace Unity.Labs.SuperScience
 
             public void Draw(Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
             {
-                var layer = PrefabGameObject.layer;
+                var layer = GameObject.layer;
                 var layerName = GetLayerNameString(layerToName, layer);
 
                 k_StringBuilder.Length = 0;
@@ -302,11 +302,11 @@ namespace Unity.Labs.SuperScience
                 if (includeLayerMaskFields && GetComponentCount(layerFilter) > 0)
                 {
                     m_Expanded = EditorGUILayout.Foldout(m_Expanded, label, true);
-                    EditorGUILayout.ObjectField(PrefabGameObject, typeof(GameObject), true);
+                    EditorGUILayout.ObjectField(GameObject, typeof(GameObject), true);
                 }
                 else
                 {
-                    EditorGUILayout.ObjectField(label, PrefabGameObject, typeof(GameObject), true);
+                    EditorGUILayout.ObjectField(label, GameObject, typeof(GameObject), true);
                 }
 
                 if (!m_Expanded || !includeLayerMaskFields)
@@ -342,7 +342,7 @@ namespace Unity.Labs.SuperScience
 
         struct ComponentRow
         {
-            public Component PrefabComponent;
+            public Component Component;
             public SortedSet<int> UsedLayers;
 
             public void Draw(Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer)
@@ -350,7 +350,7 @@ namespace Unity.Labs.SuperScience
                 using (new GUILayout.HorizontalScope())
                 {
                     var layerNameList = GetLayerNameList(UsedLayers, layerToName, layerFilter);
-                    EditorGUILayout.ObjectField($"{PrefabComponent.name} ({PrefabComponent.GetType().Name}) {{{layerNameList}}}", PrefabComponent, typeof(Component), true);
+                    EditorGUILayout.ObjectField($"{Component.name} ({Component.GetType().Name}) {{{layerNameList}}}", Component, typeof(Component), true);
                 }
             }
         }
@@ -389,7 +389,7 @@ namespace Unity.Labs.SuperScience
 
         const string k_MenuItemName = "Window/SuperScience/Prefab Layer Users";
         const string k_WindowTitle = "Prefab Layer Users";
-        const string k_NoMissingReferences = "No prefabs using a non-default layer";
+        const string k_NoLayerUsers = "No prefabs using a non-default layer";
         const string k_ProjectFolderName = "Project";
         const int k_FilterPanelWidth = 180;
         const int k_ObjectFieldWidth = 150;
@@ -410,7 +410,7 @@ namespace Unity.Labs.SuperScience
 
         static readonly Stopwatch k_StopWatch = new Stopwatch();
 
-        Vector2 m_ColorListScrollPosition;
+        Vector2 m_FilterListScrollPosition;
         Vector2 m_FolderTreeScrollPosition;
         readonly Folder m_ParentFolder = new Folder();
         readonly SortedDictionary<int, FilterRow> m_FilterRows = new SortedDictionary<int, FilterRow>();
@@ -480,7 +480,7 @@ namespace Unity.Labs.SuperScience
 
             if (m_ParentFolder.GetCount(m_LayerFilter, m_IncludeLayerMaskFields) == 0)
             {
-                GUILayout.Label(k_NoMissingReferences);
+                GUILayout.Label(k_NoLayerUsers);
             }
             else
             {
@@ -524,9 +524,9 @@ namespace Unity.Labs.SuperScience
             if (GUILayout.Button($"All ({count})", style))
                 m_LayerFilter = k_InvalidLayer;
 
-            using (var scrollView = new GUILayout.ScrollViewScope(m_ColorListScrollPosition))
+            using (var scrollView = new GUILayout.ScrollViewScope(m_FilterListScrollPosition))
             {
-                m_ColorListScrollPosition = scrollView.scrollPosition;
+                m_FilterListScrollPosition = scrollView.scrollPosition;
                 foreach (var kvp in m_FilterRows)
                 {
                     var layer =  kvp.Key;
@@ -671,7 +671,7 @@ namespace Unity.Labs.SuperScience
                     layerMaskLayers.UnionWith(usedLayers);
                     componentRows.Add(new ComponentRow
                     {
-                        PrefabComponent = component,
+                        Component = component,
                         UsedLayers = usedLayers
                     });
                 }
@@ -685,7 +685,7 @@ namespace Unity.Labs.SuperScience
                 layerUsers.Add(new GameObjectRow
                 {
                     TransformPath = GetTransformPath(gameObject.transform),
-                    PrefabGameObject = gameObject,
+                    GameObject = gameObject,
                     LayerMaskComponents = componentRows,
                     LayerMaskLayers = layerMaskLayers
                 });

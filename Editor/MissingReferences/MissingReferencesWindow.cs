@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityObject = UnityEngine.Object;
 
 namespace Unity.Labs.SuperScience
@@ -23,6 +24,74 @@ namespace Unity.Labs.SuperScience
             public abstract void SetVisibleRecursively(bool visible);
         }
 
+        protected class SceneContainer
+        {
+            const string k_UntitledSceneName = "Untitled";
+
+            readonly string m_SceneName;
+            readonly List<GameObjectContainer> m_Roots;
+            readonly int m_Count;
+
+            bool m_Visible;
+
+            public List<GameObjectContainer> Roots => m_Roots;
+
+            public SceneContainer(string sceneName, List<GameObjectContainer> roots, int count)
+            {
+                m_SceneName = sceneName;
+                m_Roots = roots;
+                m_Count = count;
+            }
+
+            public void Draw()
+            {
+                var wasVisible = m_Visible;
+                m_Visible = EditorGUILayout.Foldout(m_Visible, $"{m_SceneName} ({m_Count})", true, Styles.RichTextFoldout);
+
+                // Hold alt to apply visibility state to all children (recursively)
+                if (m_Visible != wasVisible && Event.current.alt)
+                {
+                    foreach (var gameObjectContainer in m_Roots)
+                    {
+                        gameObjectContainer.SetVisibleRecursively(m_Visible);
+                    }
+                }
+
+                if (!m_Visible)
+                    return;
+
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foreach (var gameObjectContainer in Roots)
+                    {
+                        gameObjectContainer.Draw();
+                    }
+                }
+            }
+
+            public static SceneContainer CreateIfNecessary(Scene scene, Options options)
+            {
+                var sceneName = scene.name;
+                if (string.IsNullOrEmpty(sceneName))
+                    sceneName = k_UntitledSceneName;
+
+                var count = 0;
+                List<GameObjectContainer> roots = null;
+                foreach (var gameObject in scene.GetRootGameObjects())
+                {
+                    var rootContainer = GameObjectContainer.CreateIfNecessary(gameObject, options);
+                    if (rootContainer != null)
+                    {
+                        roots ??= new List<GameObjectContainer>();
+                        roots.Add(rootContainer);
+                        count += rootContainer.Count;
+                    }
+                }
+
+                return roots != null ? new SceneContainer(sceneName, roots, count) : null;
+            }
+        }
+
         /// <summary>
         /// Tree structure for GameObject scan results
         /// When the Scan method encounters a GameObject in a scene or a prefab in the project, we initialize one of
@@ -40,19 +109,14 @@ namespace Unity.Labs.SuperScience
                 const string k_MissingScriptLabel = "<color=red>Missing Script!</color>";
 
                 readonly Component m_Component;
-                public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
+                readonly List<SerializedProperty> m_PropertiesWithMissingReferences;
 
-                /// <summary>
-                /// Initialize a ComponentContainer to represent the given Component
-                /// This will scan the component for missing references and retain the information for display in
-                /// the given window.
-                /// </summary>
-                /// <param name="component">The Component to scan for missing references</param>
-                /// <param name="options">User-configurable options for this view</param>
-                public ComponentContainer(Component component, Options options)
+                public List<SerializedProperty> PropertiesWithMissingReferences => m_PropertiesWithMissingReferences;
+
+                public ComponentContainer(Component component, List<SerializedProperty> propertiesWithMissingReferences)
                 {
                     m_Component = component;
-                    CheckForMissingReferences(component, PropertiesWithMissingReferences, options);
+                    m_PropertiesWithMissingReferences = propertiesWithMissingReferences;
                 }
 
                 /// <summary>
@@ -70,8 +134,27 @@ namespace Unity.Labs.SuperScience
                             return;
                         }
 
-                        DrawPropertiesWithMissingReferences(PropertiesWithMissingReferences);
+                        DrawPropertiesWithMissingReferences(m_PropertiesWithMissingReferences);
                     }
+                }
+
+                /// <summary>
+                /// Initialize a ComponentContainer to represent the given Component
+                /// This will scan the component for missing references and retain the information for display in
+                /// the given window.
+                /// </summary>
+                /// <param name="component">The Component to scan for missing references</param>
+                /// <param name="options">User-configurable options for this view</param>
+                public static ComponentContainer CreateIfNecessary(Component component, Options options)
+                {
+                    var missingReferences = CheckForMissingReferences(component, options);
+
+                    // If the component is null, this is a missing script. Otherwise, if there are missing references,
+                    // create and return a container
+                    if (component == null || missingReferences != null)
+                        return new ComponentContainer(component, missingReferences);
+
+                    return null;
                 }
             }
 
@@ -83,24 +166,38 @@ namespace Unity.Labs.SuperScience
             const string k_ChildrenGroupLabelFormat = "Children: {0}";
 
             readonly GameObject m_GameObject;
-            readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
-            readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
-            internal List<GameObjectContainer> Children => m_Children;
-
-            bool m_IsMissingPrefab;
-            int m_MissingReferencesInChildren;
-            int m_MissingReferencesInComponents;
+            readonly bool m_IsMissingPrefab;
+            readonly List<GameObjectContainer> m_Children;
+            readonly List<ComponentContainer> m_Components;
+            readonly int m_MissingReferencesInChildren;
+            readonly int m_MissingReferencesInComponents;
+            readonly int m_MissingReferences;
 
             internal bool HasMissingReferences => m_IsMissingPrefab || m_MissingReferencesInComponents > 0;
+            internal List<GameObjectContainer> Children => m_Children;
 
             bool m_Visible;
             bool m_ShowComponents;
             bool m_ShowChildren;
 
-            public int Count { get; private set; }
             public override UnityObject Object => m_GameObject;
+            public int Count => m_MissingReferences;
 
-            public GameObjectContainer() { }
+            // Local method use only -- created here to reduce garbage collection. Collections must be cleared before use
+            static readonly List<Component> k_Components = new List<Component>();
+
+            public GameObjectContainer(GameObject gameObject, bool isMissingPrefab,
+                int missingReferencesInChildren, int missingReferencesInComponents,
+                List<GameObjectContainer> children, List<ComponentContainer> components)
+            {
+                m_GameObject = gameObject;
+                m_IsMissingPrefab = isMissingPrefab;
+                m_MissingReferencesInChildren = missingReferencesInChildren;
+                m_MissingReferencesInComponents = missingReferencesInComponents;
+                m_Children = children;
+                m_Components = components;
+                m_MissingReferences = missingReferencesInComponents + missingReferencesInChildren;
+            }
 
             /// <summary>
             /// Initialize a GameObjectContainer to represent the given GameObject
@@ -109,60 +206,66 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             /// <param name="gameObject">The GameObject to scan for missing references</param>
             /// <param name="options">User-configurable options for this view</param>
-            internal GameObjectContainer(GameObject gameObject, Options options)
+            public static GameObjectContainer CreateIfNecessary(GameObject gameObject, Options options)
             {
-                m_GameObject = gameObject;
-
+                var isMissingPrefab = false;
                 if (PrefabUtility.IsAnyPrefabInstanceRoot(gameObject))
-                    m_IsMissingPrefab = PrefabUtility.IsPrefabAssetMissing(gameObject);
+                    isMissingPrefab = PrefabUtility.IsPrefabAssetMissing(gameObject);
 
-                foreach (var component in gameObject.GetComponents<Component>())
+                List<ComponentContainer> components = null;
+                var missingReferencesInComponents = 0;
+                var missingReferencesInChildren = 0;
+
+                // GetComponents will clear the list, so we don't have to
+                gameObject.GetComponents(k_Components);
+                foreach (var component in k_Components)
                 {
-                    var container = new ComponentContainer(component, options);
+                    var container = ComponentContainer.CreateIfNecessary(component, options);
+                    if (container == null)
+                        continue;
+
                     if (component == null)
                     {
-                        m_Components.Add(container);
-                        Count++;
-                        m_MissingReferencesInComponents++;
+                        components ??= new List<ComponentContainer>();
+                        components.Add(container);
+                        missingReferencesInComponents++;
                         continue;
                     }
 
-                    var count = container.PropertiesWithMissingReferences.Count;
+                    var missingReferences = container.PropertiesWithMissingReferences;
+                    if (missingReferences == null)
+                        continue;
+
+                    var count = missingReferences.Count;
                     if (count > 0)
                     {
-                        m_Components.Add(container);
-                        Count += count;
-                        m_MissingReferencesInComponents += count;
+                        components ??= new List<ComponentContainer>();
+                        components.Add(container);
+                        missingReferencesInComponents += count;
                     }
                 }
 
+                List<GameObjectContainer> children = null;
                 foreach (Transform child in gameObject.transform)
                 {
-                    AddChild(child.gameObject, options);
+                    var childContainer = CreateIfNecessary(child.gameObject, options);
+                    if (childContainer != null)
+                    {
+                        children ??= new List<GameObjectContainer>();
+                        children.Add(childContainer);
+                        missingReferencesInChildren += childContainer.m_MissingReferences;
+                        if (childContainer.m_IsMissingPrefab)
+                            missingReferencesInChildren++;
+                    }
                 }
-            }
 
-            /// <summary>
-            /// Add a child GameObject to this GameObjectContainer
-            /// </summary>
-            /// <param name="gameObject">The GameObject to scan for missing references</param>
-            /// <param name="options">User-configurable options for this view</param>
-            public void AddChild(GameObject gameObject, Options options)
-            {
-                var child = new GameObjectContainer(gameObject, options);
-                var childCount = child.Count;
-                Count += childCount;
-                m_MissingReferencesInChildren += childCount;
-
-                var isMissingPrefab = child.m_IsMissingPrefab;
-                if (isMissingPrefab)
+                if (isMissingPrefab || missingReferencesInComponents > 0 || missingReferencesInChildren > 0)
                 {
-                    m_MissingReferencesInChildren++;
-                    Count++;
+                    return new GameObjectContainer(gameObject, isMissingPrefab, missingReferencesInChildren,
+                        missingReferencesInComponents, children, components);
                 }
 
-                if (childCount > 0 || isMissingPrefab)
-                    m_Children.Add(child);
+                return null;
             }
 
             /// <summary>
@@ -171,12 +274,12 @@ namespace Unity.Labs.SuperScience
             public override void Draw()
             {
                 var wasVisible = m_Visible;
-                var label = string.Format(k_LabelFormat, m_GameObject ? m_GameObject.name : "Scene Root", Count);
+                var label = string.Format(k_LabelFormat, m_GameObject.name, m_MissingReferences);
                 if (m_IsMissingPrefab)
                     label = string.Format(k_MissingPrefabLabelFormat, label);
 
                 // If this object has 0 missing references but is being drawn, it is a missing prefab with no overrides
-                if (Count == 0)
+                if (m_MissingReferences == 0)
                 {
                     using (new EditorGUILayout.HorizontalScope())
                     {
@@ -259,10 +362,20 @@ namespace Unity.Labs.SuperScience
                 m_Visible = visible;
                 m_ShowComponents = visible;
                 m_ShowChildren = visible;
+                if (m_Children == null)
+                    return;
+
                 foreach (var child in m_Children)
                 {
                     child.SetVisibleRecursively(visible);
                 }
+            }
+
+            public void Clear()
+            {
+
+                m_Children.Clear();
+                m_Components.Clear();
             }
         }
 
@@ -343,20 +456,26 @@ namespace Unity.Labs.SuperScience
         /// Check a UnityObject for missing serialized references
         /// </summary>
         /// <param name="obj">The UnityObject to be scanned</param>
-        /// <param name="properties">A list to which properties with missing references will be added</param>
         /// <param name="options">User-configurable options for this view</param>
-        /// <returns>True if the object has any missing references</returns>
-        protected static void CheckForMissingReferences(UnityObject obj, List<SerializedProperty> properties, Options options)
+        /// <returns>A list of properties with missing references.
+        /// Null if no properties have missing references.</returns>
+        protected static List<SerializedProperty> CheckForMissingReferences(UnityObject obj, Options options)
         {
             if (obj == null)
-                return;
+                return null;
 
+            List<SerializedProperty> properties = null;
             var property = new SerializedObject(obj).GetIterator();
             while (property.NextVisible(true)) // enterChildren = true to scan all properties
             {
                 if (CheckForMissingReferences(property, options))
+                {
+                    properties ??= new List<SerializedProperty>();
                     properties.Add(property.Copy()); // Use a copy of this property because we are iterating on it
+                }
             }
+
+            return properties;
         }
 
         static bool CheckForMissingReferences(SerializedProperty property, Options options)

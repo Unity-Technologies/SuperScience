@@ -1,0 +1,2 @@
+Update scene scanning to be async
+Rename to ProjectAnalysisWindow to accomodate Prefab/Tag users and Solid Color Textures

@@ -224,7 +224,7 @@ namespace Unity.Labs.SuperScience
                 {
                     foreach (var user in TagUsers)
                     {
-                        if (!string.IsNullOrEmpty(tagFilter) && !user.PrefabGameObject.CompareTag(tagFilter))
+                        if (!string.IsNullOrEmpty(tagFilter) && !user.GameObject.CompareTag(tagFilter))
                             continue;
 
                         user.Draw();
@@ -236,11 +236,11 @@ namespace Unity.Labs.SuperScience
         struct GameObjectRow
         {
             public string TransformPath;
-            public GameObject PrefabGameObject;
+            public GameObject GameObject;
 
             public void Draw()
             {
-                EditorGUILayout.ObjectField($"{TransformPath} - Tag: {PrefabGameObject.tag}", PrefabGameObject, typeof(GameObject), true);
+                EditorGUILayout.ObjectField($"{TransformPath} - Tag: {GameObject.tag}", GameObject, typeof(GameObject), true);
             }
         }
 
@@ -272,7 +272,7 @@ namespace Unity.Labs.SuperScience
 
         const string k_MenuItemName = "Window/SuperScience/Prefab Tag Users";
         const string k_WindowTitle = "Prefab Tag Users";
-        const string k_NoMissingReferences = "No prefabs using any tags";
+        const string k_NoTagUsers = "No prefabs using any tags";
         const string k_ProjectFolderName = "Project";
         const int k_FilterPanelWidth = 180;
         const int k_ObjectFieldWidth = 150;
@@ -290,7 +290,7 @@ namespace Unity.Labs.SuperScience
 
         static readonly Stopwatch k_StopWatch = new Stopwatch();
 
-        Vector2 m_ColorListScrollPosition;
+        Vector2 m_FilterListScrollPosition;
         Vector2 m_FolderTreeScrollPosition;
         readonly Folder m_ParentFolder = new Folder();
         readonly SortedDictionary<string, HashSet<GameObject>> m_FilterRows = new SortedDictionary<string, HashSet<GameObject>>();
@@ -353,7 +353,7 @@ namespace Unity.Labs.SuperScience
 
             if (m_ParentFolder.GetCount(m_TagFilter) == 0)
             {
-                GUILayout.Label(k_NoMissingReferences);
+                GUILayout.Label(k_NoTagUsers);
             }
             else
             {
@@ -389,9 +389,9 @@ namespace Unity.Labs.SuperScience
             if (GUILayout.Button($"All ({count})", style))
                 m_TagFilter = null;
 
-            using (var scrollView = new GUILayout.ScrollViewScope(m_ColorListScrollPosition))
+            using (var scrollView = new GUILayout.ScrollViewScope(m_FilterListScrollPosition))
             {
-                m_ColorListScrollPosition = scrollView.scrollPosition;
+                m_FilterListScrollPosition = scrollView.scrollPosition;
                 foreach (var kvp in m_FilterRows)
                 {
                     var tag =  kvp.Key;
@@ -490,7 +490,7 @@ namespace Unity.Labs.SuperScience
                 tagUsers.Add(new GameObjectRow
                 {
                     TransformPath = GetTransformPath(gameObject.transform),
-                    PrefabGameObject = gameObject
+                    GameObject = gameObject
                 });
             }
 
