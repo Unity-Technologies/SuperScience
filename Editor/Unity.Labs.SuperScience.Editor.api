@@ -34,6 +34,11 @@ namespace Unity.Labs.SuperScience
         public PrefabLayerUsers() {}
     }
 
+    public class PrefabTagUsers : UnityEditor.EditorWindow
+    {
+        public PrefabTagUsers() {}
+    }
+
     public class RunInEditHelper : UnityEditor.EditorWindow
     {
         public RunInEditHelper() {}

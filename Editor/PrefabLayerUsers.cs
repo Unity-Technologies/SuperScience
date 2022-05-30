@@ -11,20 +11,20 @@ using Debug = UnityEngine.Debug;
 namespace Unity.Labs.SuperScience
 {
     /// <summary>
-    /// Scans the project for textures comprised of a single solid color.
-    /// Use this utility to identify redundant textures, and textures which are larger than they need to be.
+    /// Scans the project for prefabs which use non-default layers.
+    /// Use this utility to track down where a certain layer is used.
     /// </summary>
     public class PrefabLayerUsers : EditorWindow
     {
         /// <summary>
         /// Tree structure for folder scan results.
         /// This is the root object for the project scan, and represents the results in a hierarchy that matches the
-        /// project's folder structure for an easy to read presentation of solid color textures.
-        /// When the Scan method encounters a texture, we initialize one of these using the asset path to determine where it belongs.
+        /// project's folder structure for an easy to read presentation of layer users.
+        /// When the Scan method encounters a layer user, we search the parent folder for one of these using the asset path to file it where it belongs.
         /// </summary>
         class Folder
         {
-            // TODO: Share code between this window and MissingProjectReferences
+            // TODO: Share code between this window and others that display a folder structure
             const int k_IndentAmount = 15;
             const int k_SeparatorLineHeight = 1;
 
@@ -50,7 +50,7 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Add a texture to this folder at a given path.
+            /// Add a prefab to this folder at a given path.
             /// </summary>
             public void AddPrefab(PrefabRow prefabRow)
             {
@@ -59,14 +59,13 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Get the Folder object which corresponds to the given path.
+            /// Get the Folder object which corresponds to the path of a given <see cref="PrefabRow"/>.
             /// If this is the first asset encountered for a given folder, create a chain of folder objects
             /// rooted with this one and return the folder at the end of that chain.
-            /// Every time a folder is accessed, its Count property is incremented to indicate that it contains one
-            /// more solid color texture.
+            /// Every time a folder is accessed, its Count property is incremented to indicate that it contains one more layer user.
             /// </summary>
             /// <param name="prefabRow">A <see cref="PrefabRow"/> struct containing the prefab asset reference and its metadata</param>
-            /// <returns>The folder object corresponding to the folder containing the texture at the given path.</returns>
+            /// <returns>The folder object corresponding to the folder containing the layer users at the given path.</returns>
             Folder GetOrCreateFolderForAssetPath(PrefabRow prefabRow)
             {
                 var directories = prefabRow.Path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -356,6 +355,12 @@ namespace Unity.Labs.SuperScience
             }
         }
 
+        class FilterRow
+        {
+            public readonly HashSet<GameObject> AllUsers = new HashSet<GameObject>();
+            public readonly HashSet<GameObject> UsersWithoutLayerMasks = new HashSet<GameObject>();
+        }
+
         static class Styles
         {
             internal static readonly GUIStyle ActiveFilterButton = new GUIStyle(GUI.skin.button)
@@ -382,17 +387,12 @@ namespace Unity.Labs.SuperScience
             };
         }
 
-        class FilterRow
-        {
-            public readonly HashSet<GameObject> AllUsers = new HashSet<GameObject>();
-            public readonly HashSet<GameObject> UsersWithoutLayerMasks = new HashSet<GameObject>();
-        }
-
+        const string k_MenuItemName = "Window/SuperScience/Prefab Layer Users";
+        const string k_WindowTitle = "Prefab Layer Users";
         const string k_NoMissingReferences = "No prefabs using a non-default layer";
         const string k_ProjectFolderName = "Project";
         const int k_FilterPanelWidth = 180;
         const int k_ObjectFieldWidth = 150;
-        const string k_WindowTitle = "Prefab Layer Users";
         const string k_Instructions = "Click the Scan button to scan your project for users of non-default layers. WARNING: " +
             "This will load every prefab in your project. For large projects, this may take a long time and/or crash the Editor.";
         const string k_ScanFilter = "t:Prefab";
@@ -405,7 +405,7 @@ namespace Unity.Labs.SuperScience
 
         static readonly GUIContent k_ScanGUIContent = new GUIContent("Scan", "Scan the project for users of non-default layers");
         static readonly GUIContent k_CancelGUIContent = new GUIContent("Cancel", "Cancel the current scan");
-        static readonly GUILayoutOption k_LayerPanelWidthOption = GUILayout.Width(k_FilterPanelWidth);
+        static readonly GUILayoutOption k_FilterPanelWidthOption = GUILayout.Width(k_FilterPanelWidth);
         static readonly Vector2 k_MinSize = new Vector2(400, 200);
 
         static readonly Stopwatch k_StopWatch = new Stopwatch();
@@ -436,7 +436,7 @@ namespace Unity.Labs.SuperScience
         /// <summary>
         /// Initialize the window
         /// </summary>
-        [MenuItem("Window/SuperScience/Prefab Layer Users")]
+        [MenuItem(k_MenuItemName)]
         static void Init()
         {
             GetWindow<PrefabLayerUsers>(k_WindowTitle).Show();
@@ -486,7 +486,7 @@ namespace Unity.Labs.SuperScience
             {
                 using (new GUILayout.HorizontalScope())
                 {
-                    using (new GUILayout.VerticalScope(k_LayerPanelWidthOption))
+                    using (new GUILayout.VerticalScope(k_FilterPanelWidthOption))
                     {
                         DrawFilters();
                     }
@@ -515,7 +515,7 @@ namespace Unity.Labs.SuperScience
         }
 
         /// <summary>
-        /// Draw a list of unique layers.
+        /// Draw a list buttons for filtering based on layer.
         /// </summary>
         void DrawFilters()
         {
@@ -621,13 +621,13 @@ namespace Unity.Labs.SuperScience
                 k_LayerUnionHashSet.UnionWith(layerMaskLayers);
                 foreach (var layer in k_LayerUnionHashSet)
                 {
-                    var filterRow = GetOrCreatePrefabHashSetForLayer(layer);
+                    var filterRow = GetOrCreateFilterRowSetForLayer(layer);
                     filterRow.AllUsers.Add(prefabAsset);
                 }
 
                 foreach (var layer in gameObjectLayers)
                 {
-                    var filterRow = GetOrCreatePrefabHashSetForLayer(layer);
+                    var filterRow = GetOrCreateFilterRowSetForLayer(layer);
                     filterRow.UsersWithoutLayerMasks.Add(prefabAsset);
                 }
             }
@@ -733,7 +733,7 @@ namespace Unity.Labs.SuperScience
         }
 
         /// <summary>
-        /// Scan the project for solid color textures and populate the data structures for UI.
+        /// Scan the project for layer users and populate the data structures for UI.
         /// </summary>
         void Scan()
         {
@@ -793,7 +793,7 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         /// <param name="layer">The layer value to use for this row.</param>
         /// <returns>The row for the layer value.</returns>
-        FilterRow GetOrCreatePrefabHashSetForLayer(int layer)
+        FilterRow GetOrCreateFilterRowSetForLayer(int layer)
         {
             if (m_FilterRows.TryGetValue(layer, out var filterRow))
                 return filterRow;
@@ -806,7 +806,6 @@ namespace Unity.Labs.SuperScience
         static string GetLayerNameList(IEnumerable<int> gameObjectLayers, IEnumerable<int> layerMaskLayers,
             Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
         {
-            k_StringBuilder.Length = 0;
             k_LayerUnionHashSet.Clear();
             k_LayerUnionHashSet.UnionWith(gameObjectLayers);
             if (includeLayerMaskFields)
@@ -838,6 +837,7 @@ namespace Unity.Labs.SuperScience
             layerToName.TryGetValue(layer, out var layerName);
             if (string.IsNullOrEmpty(layerName))
                 layerName = layer.ToString();
+
             return layerName;
         }
 
