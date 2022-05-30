@@ -34,7 +34,7 @@ namespace Unity.Labs.SuperScience
             readonly SortedDictionary<int, int> m_TotalWithoutLayerMasksPerLayer = new SortedDictionary<int, int>();
             int m_TotalCount;
             int m_TotalWithoutLayerMasks;
-            bool m_Visible;
+            bool m_Expanded;
 
             /// <summary>
             /// Clear the contents of this container.
@@ -100,18 +100,18 @@ namespace Unity.Labs.SuperScience
             /// <param name="includeLayerMaskFields">(Optional) Whether to include layers from LayerMask fields in the results.</param>
             public void Draw(string name, Dictionary<int, string> layerToName, int layerFilter = k_InvalidLayer, bool includeLayerMaskFields = true)
             {
-                var wasVisible = m_Visible;
+                var wasExpanded = m_Expanded;
                 var layerNameList = GetLayerNameList(m_TotalCountPerLayer.Keys, m_TotalWithoutLayerMasksPerLayer.Keys, layerToName, layerFilter, includeLayerMaskFields);
                 var label = $"{name}: {GetCount(layerFilter, includeLayerMaskFields)} {{{layerNameList}}}";
-                m_Visible = EditorGUILayout.Foldout(m_Visible, label, true);
+                m_Expanded = EditorGUILayout.Foldout(m_Expanded, label, true);
 
                 DrawLineSeparator();
 
-                // Hold alt to apply visibility state to all children (recursively)
-                if (m_Visible != wasVisible && Event.current.alt)
-                    SetVisibleRecursively(m_Visible);
+                // Hold alt to apply expanded state to all children (recursively)
+                if (m_Expanded != wasExpanded && Event.current.alt)
+                    SetExpandedRecursively(m_Expanded);
 
-                if (!m_Visible)
+                if (!m_Expanded)
                     return;
 
                 using (new EditorGUI.IndentLevelScope())
@@ -158,15 +158,15 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Set the visibility state of this folder, its contents and their children and all of its subfolders and their contents and children.
+            /// Set the expanded state of this folder, its contents and their children and all of its subfolders and their contents and children.
             /// </summary>
-            /// <param name="visible">Whether this object and its children should be visible in the GUI.</param>
-            void SetVisibleRecursively(bool visible)
+            /// <param name="expanded">Whether this object should be expanded in the GUI.</param>
+            void SetExpandedRecursively(bool expanded)
             {
-                m_Visible = visible;
+                m_Expanded = expanded;
                 foreach (var kvp in m_Subfolders)
                 {
-                    kvp.Value.SetVisibleRecursively(visible);
+                    kvp.Value.SetExpandedRecursively(expanded);
                 }
             }
 

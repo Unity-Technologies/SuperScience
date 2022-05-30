@@ -36,7 +36,7 @@ namespace Unity.Labs.SuperScience
                 readonly List<MissingReferencesContainer> m_SubAssets;
                 readonly List<SerializedProperty> m_PropertiesWithMissingReferences;
 
-                bool m_SubAssetsVisible;
+                bool m_SubAssetsExpanded;
 
                 public override UnityObject Object => m_Object;
 
@@ -111,8 +111,8 @@ namespace Unity.Labs.SuperScience
                         if (count == 0)
                             return;
 
-                        m_SubAssetsVisible = EditorGUILayout.Foldout(m_SubAssetsVisible, string.Format(k_SubAssetsLabelFormat, count));
-                        if (!m_SubAssetsVisible)
+                        m_SubAssetsExpanded = EditorGUILayout.Foldout(m_SubAssetsExpanded, string.Format(k_SubAssetsLabelFormat, count));
+                        if (!m_SubAssetsExpanded)
                             return;
 
                         foreach (var asset in m_SubAssets)
@@ -122,16 +122,16 @@ namespace Unity.Labs.SuperScience
                     }
                 }
 
-                public override void SetVisibleRecursively(bool visible)
+                public override void SetExpandedRecursively(bool expanded)
                 {
-                    m_SubAssetsVisible = visible;
+                    m_SubAssetsExpanded = expanded;
                 }
             }
 
             const string k_LabelFormat = "{0}: {1}";
             readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
             readonly List<MissingReferencesContainer> m_Assets = new List<MissingReferencesContainer>();
-            bool m_Visible;
+            bool m_Expanded;
 
             internal List<MissingReferencesContainer> Assets => m_Assets;
             internal SortedDictionary<string, Folder> Subfolders => m_Subfolders;
@@ -215,14 +215,14 @@ namespace Unity.Labs.SuperScience
             /// <param name="name">The name of the folder</param>
             public void Draw(string name)
             {
-                var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format(k_LabelFormat, name, Count), true);
+                var wasExpanded = m_Expanded;
+                m_Expanded = EditorGUILayout.Foldout(m_Expanded, string.Format(k_LabelFormat, name, Count), true);
 
-                // Hold alt to apply visibility state to all children (recursively)
-                if (m_Visible != wasVisible && Event.current.alt)
-                    SetVisibleRecursively(m_Visible);
+                // Hold alt to apply expanded state to all children (recursively)
+                if (m_Expanded != wasExpanded && Event.current.alt)
+                    SetExpandedRecursively(m_Expanded);
 
-                if (!m_Visible)
+                if (!m_Expanded)
                     return;
 
                 using (new EditorGUI.IndentLevelScope())
@@ -245,20 +245,20 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Set the visibility state of this folder, its contents and their children and all of its subfolders and their contents and children
+            /// Set the expanded state of this folder, its contents and their children and all of its subfolders and their contents and children
             /// </summary>
-            /// <param name="visible">Whether this object and its children should be visible in the GUI</param>
-            void SetVisibleRecursively(bool visible)
+            /// <param name="expanded">Whether this object should be expanded in the GUI</param>
+            void SetExpandedRecursively(bool expanded)
             {
-                m_Visible = visible;
+                m_Expanded = expanded;
                 foreach (var asset in m_Assets)
                 {
-                    asset.SetVisibleRecursively(visible);
+                    asset.SetExpandedRecursively(expanded);
                 }
 
                 foreach (var kvp in m_Subfolders)
                 {
-                    kvp.Value.SetVisibleRecursively(visible);
+                    kvp.Value.SetExpandedRecursively(expanded);
                 }
             }
 

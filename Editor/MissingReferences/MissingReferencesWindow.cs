@@ -21,7 +21,7 @@ namespace Unity.Labs.SuperScience
         {
             public abstract void Draw();
             public abstract UnityObject Object { get; }
-            public abstract void SetVisibleRecursively(bool visible);
+            public abstract void SetExpandedRecursively(bool expanded);
         }
 
         protected class SceneContainer
@@ -32,7 +32,7 @@ namespace Unity.Labs.SuperScience
             readonly List<GameObjectContainer> m_Roots;
             readonly int m_Count;
 
-            bool m_Visible;
+            bool m_Expanded;
 
             public List<GameObjectContainer> Roots => m_Roots;
 
@@ -45,19 +45,19 @@ namespace Unity.Labs.SuperScience
 
             public void Draw()
             {
-                var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, $"{m_SceneName} ({m_Count})", true, Styles.RichTextFoldout);
+                var wasExpanded = m_Expanded;
+                m_Expanded = EditorGUILayout.Foldout(m_Expanded, $"{m_SceneName} ({m_Count})", true, Styles.RichTextFoldout);
 
-                // Hold alt to apply visibility state to all children (recursively)
-                if (m_Visible != wasVisible && Event.current.alt)
+                // Hold alt to apply expanded state to all children (recursively)
+                if (m_Expanded != wasExpanded && Event.current.alt)
                 {
                     foreach (var gameObjectContainer in m_Roots)
                     {
-                        gameObjectContainer.SetVisibleRecursively(m_Visible);
+                        gameObjectContainer.SetExpandedRecursively(m_Expanded);
                     }
                 }
 
-                if (!m_Visible)
+                if (!m_Expanded)
                     return;
 
                 using (new EditorGUI.IndentLevelScope())
@@ -176,7 +176,7 @@ namespace Unity.Labs.SuperScience
             internal bool HasMissingReferences => m_IsMissingPrefab || m_MissingReferencesInComponents > 0;
             internal List<GameObjectContainer> Children => m_Children;
 
-            bool m_Visible;
+            bool m_Expanded;
             bool m_ShowComponents;
             bool m_ShowChildren;
 
@@ -273,7 +273,7 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             public override void Draw()
             {
-                var wasVisible = m_Visible;
+                var wasExpanded = m_Expanded;
                 var label = string.Format(k_LabelFormat, m_GameObject.name, m_MissingReferences);
                 if (m_IsMissingPrefab)
                     label = string.Format(k_MissingPrefabLabelFormat, label);
@@ -291,13 +291,13 @@ namespace Unity.Labs.SuperScience
                     return;
                 }
 
-                m_Visible = EditorGUILayout.Foldout(m_Visible, label, true, Styles.RichTextFoldout);
+                m_Expanded = EditorGUILayout.Foldout(m_Expanded, label, true, Styles.RichTextFoldout);
 
-                // Hold alt to apply visibility state to all children (recursively)
-                if (m_Visible != wasVisible && Event.current.alt)
-                    SetVisibleRecursively(m_Visible);
+                // Hold alt to apply expanded state to all children (recursively)
+                if (m_Expanded != wasExpanded && Event.current.alt)
+                    SetExpandedRecursively(m_Expanded);
 
-                if (!m_Visible)
+                if (!m_Expanded)
                     return;
 
                 using (new EditorGUI.IndentLevelScope())
@@ -354,20 +354,20 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Set the visibility state of this object and all of its children
+            /// Set the expanded state of this object and all of its children
             /// </summary>
-            /// <param name="visible">Whether this object and its children should be visible in the GUI</param>
-            public override void SetVisibleRecursively(bool visible)
+            /// <param name="expanded">Whether this object should be expanded in the GUI</param>
+            public override void SetExpandedRecursively(bool expanded)
             {
-                m_Visible = visible;
-                m_ShowComponents = visible;
-                m_ShowChildren = visible;
+                m_Expanded = expanded;
+                m_ShowComponents = expanded;
+                m_ShowChildren = expanded;
                 if (m_Children == null)
                     return;
 
                 foreach (var child in m_Children)
                 {
-                    child.SetVisibleRecursively(visible);
+                    child.SetExpandedRecursively(expanded);
                 }
             }
 
