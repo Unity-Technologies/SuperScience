@@ -16,6 +16,11 @@ namespace Unity.Labs.SuperScience
         static readonly List<GameObject> k_RootGameObjects = new List<GameObject>();
         static readonly List<Component> k_Components = new List<Component>();
 
+        /// <summary>
+        /// Get the total number of components used in the scene
+        /// </summary>
+        public int TotalComponents => m_TotalComponents;
+
         public void UpdateFromScene(Scene scene)
         {
             m_TotalComponents = 0;

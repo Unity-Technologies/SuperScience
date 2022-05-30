@@ -17,7 +17,7 @@ namespace Unity.Labs.SuperScience
 
 #pragma warning disable 649
         [SerializeField]
-        [Tooltip("The transform to match position and orientation - ie. a tracke controller")]
+        [Tooltip("The transform to match position and orientation - ie. a tracked controller")]
         Transform m_FollowSource;
 
         [SerializeField]
@@ -40,7 +40,8 @@ namespace Unity.Labs.SuperScience
 
             // Determine the angular difference between the current rotation and new 'follow' rotation
             // This is for maintaining a steady orientation for an object while moving the controller around
-            var oldRotation = transform.rotation;
+            var thisTransform = transform;
+            var oldRotation = thisTransform.rotation;
             var steadyAngleDif = 180.0f;
             if (m_UsePreviousOrientation)
             {
@@ -50,7 +51,7 @@ namespace Unity.Labs.SuperScience
             // Determine the optimal orientation this object would have if it was keeping the endpoint stable
             // Then get the angular difference between that rotation and the new 'follow' rotation
             var toEndPoint = (m_StabilizationPoint.position - targetPosition).normalized;
-            var endPointRotation = Quaternion.LookRotation(toEndPoint, transform.up);
+            var endPointRotation = Quaternion.LookRotation(toEndPoint, thisTransform.up);
             var endPointAngleDif = 180.0f;
             if (m_UseEndPoint)
             {
@@ -69,22 +70,23 @@ namespace Unity.Labs.SuperScience
                 targetRotation = Quaternion.Slerp(oldRotation, targetRotation, lerpFactor);
             }
 
-            transform.rotation = targetRotation;
-            transform.position = targetPosition;
+            thisTransform.rotation = targetRotation;
+            thisTransform.position = targetPosition;
         }
 
-        float CalculateStabilizedLerp(float distance, float timeSlice)
+        static float CalculateStabilizedLerp(float distance, float timeSlice)
         {
             // The original angle stabilization code just calculated distance/maxAngle
             // This feels great in VR but is frame-dependent on experiences running at 90fps
             //return Mathf.Clamp01(distance / k_AngleStabilization);
 
             // We can estimate a time-independent analog
-            var originalLerp = (distance / k_AngleStabilization);
+            var originalLerp = distance / k_AngleStabilization;
             if (originalLerp >= 1.0f)
             {
                 return 1.0f;
             }
+
             if (originalLerp <= 0.0f)
             {
                 return 0.0f;
@@ -93,16 +95,16 @@ namespace Unity.Labs.SuperScience
             // For fps higher than 90 fps, we scale this value
             // For fps lower than 90fps, we take advantage of the fact that each time this algorithm
             // runs with the same values, the remaining lerp distance squares itself
-            // We estimate this up to 3 timeslices.  At that point the numbers just get too small to be useful
-            // (and any VR experience running at 30 fps is going to be pretty rough, even with reprojection)
-            var doubleFrameLerp = originalLerp - (originalLerp*originalLerp);
+            // We estimate this up to 3 time slices.  At that point the numbers just get too small to be useful
+            // (and any VR experience running at 30 fps is going to be pretty rough, even with re-projection)
+            var doubleFrameLerp = originalLerp - originalLerp * originalLerp;
             var tripleFrameLerp = doubleFrameLerp * doubleFrameLerp;
 
             var firstSlice = Mathf.Clamp01(timeSlice / k_90FPS);
             var secondSlice = Mathf.Clamp01((timeSlice - k_90FPS) / k_90FPS);
-            var thirdSlice = Mathf.Clamp01((timeSlice - (2.0f * k_90FPS)) / k_90FPS);
+            var thirdSlice = Mathf.Clamp01((timeSlice - 2.0f * k_90FPS) / k_90FPS);
 
-            return originalLerp*firstSlice + doubleFrameLerp*secondSlice + tripleFrameLerp*thirdSlice;
+            return originalLerp * firstSlice + doubleFrameLerp * secondSlice + tripleFrameLerp * thirdSlice;
         }
     }
 }

@@ -37,7 +37,7 @@ namespace Unity.Labs.SuperScience
                 public readonly List<MissingReferencesContainer> SubAssets = new List<MissingReferencesContainer>();
                 public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
 
-                public override UnityObject Object { get { return m_Object; } }
+                public override UnityObject Object => m_Object;
 
                 /// <summary>
                 /// Initialize an AssetContainer to represent the given UnityObject
@@ -173,9 +173,8 @@ namespace Unity.Labs.SuperScience
                 for (var i = 0; i < length; i++)
                 {
                     var directory = directories[i];
-                    Folder subfolder;
                     var subfolders = folder.m_Subfolders;
-                    if (!subfolders.TryGetValue(directory, out subfolder))
+                    if (!subfolders.TryGetValue(directory, out var subfolder))
                     {
                         subfolder = new Folder();
                         subfolders[directory] = subfolder;
