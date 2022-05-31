@@ -48,4 +48,9 @@ namespace Unity.Labs.SuperScience
     {
         public SceneLayerUsers() {}
     }
+
+    public class SceneTagUsers : UnityEditor.EditorWindow
+    {
+        public SceneTagUsers() {}
+    }
 }

@@ -398,7 +398,7 @@ namespace Unity.Labs.SuperScience
                 {
                     if (isLayerUser)
                     {
-                        var filterRow = GetOrCreateFilterRowSetForLayer(filterRows, layer);
+                        var filterRow = GetOrCreateFilterRowForLayer(filterRows, layer);
                         filterRow.UsersWithoutLayerMasks.Add(gameObject);
                         filterRow.AllUsers.Add(gameObject);
                     }
@@ -408,7 +408,7 @@ namespace Unity.Labs.SuperScience
                     {
                         foreach (var kvp in newContainer.m_UsagesInComponentsPerLayer)
                         {
-                            var filterRow = GetOrCreateFilterRowSetForLayer(filterRows, kvp.Key);
+                            var filterRow = GetOrCreateFilterRowForLayer(filterRows, kvp.Key);
                             filterRow.AllUsers.Add(gameObject);
                         }
                     }
@@ -614,24 +614,24 @@ namespace Unity.Labs.SuperScience
                 return totalWithoutLayerMasks;
             }
 
-            void AggregateCount(GameObjectContainer child, ref int layerUsagesInChildren,
-                ref int layerUsagesInChildrenWithoutLayerMasks)
+            void AggregateCount(GameObjectContainer child, ref int usagesInChildren,
+                ref int usagesInChildrenWithoutLayerMasks)
             {
                 var layer = child.GameObject.layer;
                 if (layer != 0)
                 {
-                    layerUsagesInChildren++;
-                    layerUsagesInChildrenWithoutLayerMasks++;
+                    usagesInChildren++;
+                    usagesInChildrenWithoutLayerMasks++;
                     IncrementCountForLayer(layer, m_UsagesInChildrenPerLayer);
                     IncrementCountForLayer(layer, m_UsagesInChildrenWithoutLayerMasksPerLayer);
                 }
 
-                layerUsagesInChildren += child.m_TotalUsagesInChildren;
-                layerUsagesInChildrenWithoutLayerMasks += child.m_TotalUsagesInChildrenWithoutLayerMasks;
+                usagesInChildren += child.m_TotalUsagesInChildren;
+                usagesInChildrenWithoutLayerMasks += child.m_TotalUsagesInChildrenWithoutLayerMasks;
                 AggregateCountPerLayer(child.m_UsagesInChildrenPerLayer, m_UsagesInChildrenPerLayer);
                 AggregateCountPerLayer(child.m_UsagesInChildrenWithoutLayerMasksPerLayer, m_UsagesInChildrenWithoutLayerMasksPerLayer);
 
-                layerUsagesInChildren += child.m_TotalUsagesInComponents;
+                usagesInChildren += child.m_TotalUsagesInComponents;
                 AggregateCountPerLayer(child.m_UsagesInComponentsPerLayer, m_UsagesInChildrenPerLayer);
             }
 
@@ -888,7 +888,7 @@ namespace Unity.Labs.SuperScience
         /// <param name="filterRows">Dictionary of FilterRow objects for counting usages per layer.</param>
         /// <param name="layer">The layer value to use for this row.</param>
         /// <returns>The row for the layer value.</returns>
-        static FilterRow GetOrCreateFilterRowSetForLayer(SortedDictionary<int, FilterRow> filterRows, int layer)
+        static FilterRow GetOrCreateFilterRowForLayer(SortedDictionary<int, FilterRow> filterRows, int layer)
         {
             if (filterRows.TryGetValue(layer, out var filterRow))
                 return filterRow;

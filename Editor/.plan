@@ -6,3 +6,4 @@ Rename MissingReferenceWindow base class to AnalysisWindow and refactor to share
   Split out Folder, GameObjectContainer, etc. types into their own files, share among all analysis windows
 Create options to allow Layer Usages windows to skip scanning for layer masks (SerializedProperty access is the bottleneck)
 Allow filtering Layer Usages with multiple layers
+Use rich text for GameObject labels (bold tag or layer, etc.)

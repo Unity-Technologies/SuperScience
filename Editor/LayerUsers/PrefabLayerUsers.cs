@@ -622,13 +622,13 @@ namespace Unity.Labs.SuperScience
                 k_LayerUnionHashSet.UnionWith(layerMaskLayers);
                 foreach (var layer in k_LayerUnionHashSet)
                 {
-                    var filterRow = GetOrCreateFilterRowSetForLayer(layer);
+                    var filterRow = GetOrCreateFilterRowForLayer(layer);
                     filterRow.AllUsers.Add(prefabAsset);
                 }
 
                 foreach (var layer in gameObjectLayers)
                 {
-                    var filterRow = GetOrCreateFilterRowSetForLayer(layer);
+                    var filterRow = GetOrCreateFilterRowForLayer(layer);
                     filterRow.UsersWithoutLayerMasks.Add(prefabAsset);
                 }
             }
@@ -794,7 +794,7 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         /// <param name="layer">The layer value to use for this row.</param>
         /// <returns>The row for the layer value.</returns>
-        FilterRow GetOrCreateFilterRowSetForLayer(int layer)
+        FilterRow GetOrCreateFilterRowForLayer(int layer)
         {
             if (m_FilterRows.TryGetValue(layer, out var filterRow))
                 return filterRow;
