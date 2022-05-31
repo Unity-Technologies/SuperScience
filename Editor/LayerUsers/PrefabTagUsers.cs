@@ -351,19 +351,19 @@ namespace Unity.Labs.SuperScience
                 return;
             }
 
-            if (m_ParentFolder.GetCount(m_TagFilter) == 0)
+            using (new GUILayout.HorizontalScope())
             {
-                GUILayout.Label(k_NoTagUsers);
-            }
-            else
-            {
-                using (new GUILayout.HorizontalScope())
+                using (new GUILayout.VerticalScope(k_FilterPanelWidthOption))
                 {
-                    using (new GUILayout.VerticalScope(k_FilterPanelWidthOption))
-                    {
-                        DrawFilters();
-                    }
-                    
+                    DrawFilters();
+                }
+
+                if (m_ParentFolder.GetCount(m_TagFilter) == 0)
+                {
+                    GUILayout.Label(k_NoTagUsers);
+                }
+                else
+                {
                     using (var scrollView = new GUILayout.ScrollViewScope(m_FolderTreeScrollPosition))
                     {
                         m_FolderTreeScrollPosition = scrollView.scrollPosition;
@@ -375,7 +375,7 @@ namespace Unity.Labs.SuperScience
             if (m_ScanCount > 0 && m_ScanCount - m_ScanProgress > 0)
             {
                 var rect = GUILayoutUtility.GetRect(0, float.PositiveInfinity, k_ProgressBarHeight, k_ProgressBarHeight);
-                EditorGUI.ProgressBar(rect, (float)m_ScanProgress / m_ScanCount, $"{m_ScanProgress} / {m_ScanCount}");
+                EditorGUI.ProgressBar(rect, (float) m_ScanProgress / m_ScanCount, $"{m_ScanProgress} / {m_ScanCount}");
             }
         }
 
