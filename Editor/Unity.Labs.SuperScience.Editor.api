@@ -38,4 +38,9 @@ namespace Unity.Labs.SuperScience
     {
         public RunInEditHelper() {}
     }
+
+    public class SolidColorTextures : UnityEditor.EditorWindow
+    {
+        public SolidColorTextures() {}
+    }
 }
