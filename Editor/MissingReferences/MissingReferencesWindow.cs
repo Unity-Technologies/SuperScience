@@ -302,13 +302,6 @@ namespace Unity.Labs.SuperScience
 
                 using (new EditorGUI.IndentLevelScope())
                 {
-                    // If m_GameObject is null, this is a scene
-                    if (m_GameObject == null)
-                    {
-                        DrawChildren();
-                        return;
-                    }
-
                     if (m_MissingReferencesInComponents > 0)
                     {
                         EditorGUILayout.ObjectField(m_GameObject, typeof(GameObject), true);
@@ -334,21 +327,16 @@ namespace Unity.Labs.SuperScience
                         {
                             using (new EditorGUI.IndentLevelScope())
                             {
-                                DrawChildren();
+                                foreach (var child in m_Children)
+                                {
+                                    var childObject = child.m_GameObject;
+
+                                    // Check for null in case  of destroyed object
+                                    if (childObject)
+                                        child.Draw();
+                                }
                             }
                         }
-                    }
-                }
-
-                void DrawChildren()
-                {
-                    foreach (var child in m_Children)
-                    {
-                        var childObject = child.m_GameObject;
-
-                        // Check for null in case  of destroyed object
-                        if (childObject)
-                            child.Draw();
                     }
                 }
             }

@@ -43,4 +43,9 @@ namespace Unity.Labs.SuperScience
     {
         public RunInEditHelper() {}
     }
+
+    public class SceneLayerUsers : UnityEditor.EditorWindow
+    {
+        public SceneLayerUsers() {}
+    }
 }

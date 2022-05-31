@@ -1,3 +1,8 @@
-Update scene scanning to be async
+Refactor "Layer Users" to "Layer Usages"
+Upgrade Prefab Layer Users to display GameObjects the same way Scene Layer Users does
+Update scene scanning to be async in MissingReferences and Layer Usages
 Refactor scanning options to be display options so we don't require a re-scan
-Rename to ProjectAnalysisWindow to accommodate Prefab/Tag users and Solid Color Textures
+Rename MissingReferenceWindow base class to AnalysisWindow and refactor to share code Prefab/Tag usages and Solid Color Textures
+  Split out Folder, GameObjectContainer, etc. types into their own files, share among all analysis windows
+Create options to allow Layer Usages windows to skip scanning for layer masks (SerializedProperty access is the bottleneck)
+Allow filtering Layer Usages with multiple layers
