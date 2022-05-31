@@ -11,10 +11,9 @@ namespace Unity.Labs.SuperScience.Example
         /// Drawing constants we pass to the gizmo functions
         /// </summary>
         const float k_RayScale = 0.5f;
-        const float k_RayEndcap = 0.05f;
+        const float k_RayEndCap = 0.05f;
         const float k_AngularAxisLength = 0.25f;
         const float k_AngularWedgeSize = 0.1f;
-        const float k_MinAngularSpeed = 0.05f;
 
         // These control the lengths of the drawn velocity, and acceleration vectors
         // Acceleration values tend to be pretty high, so we lower them down considerably to stay readable
@@ -58,80 +57,83 @@ namespace Unity.Labs.SuperScience.Example
 
         void Start ()
         {
-            m_MotionData.Reset(m_ToTrack.position, m_ToTrack.rotation, Vector3.zero, Vector3.zero);
-            m_LastPosition = m_ToTrack.position;
+            var position = m_ToTrack.position;
+            m_MotionData.Reset(position, m_ToTrack.rotation, Vector3.zero, Vector3.zero);
+            m_LastPosition = position;
         }
 
         /// <summary>
         /// Sends updated data to the physicsTracker, and then draws the calculated data
         /// </summary>
-        void Update ()
+        void Update()
         {
-            m_MotionData.Update(m_ToTrack.position, m_ToTrack.rotation, Time.smoothDeltaTime);
+            var position = m_ToTrack.position;
+            m_MotionData.Update(position, m_ToTrack.rotation, Time.smoothDeltaTime);
+            var forward = transform.forward;
             if (m_DrawSmoothSpeed)
             {
                 if (m_UseDirection)
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, m_MotionData.Direction, k_SmoothVelColor, 1.0f, m_MotionData.Speed*k_VelocityScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + m_MotionData.Velocity*k_VelocityScale, k_RayEndcap, k_SmoothVelColor);
+                    GizmoModule.instance.DrawRay(position, m_MotionData.Direction, k_SmoothVelColor, 1.0f, m_MotionData.Speed * k_VelocityScale);
+                    GizmoModule.instance.DrawSphere(position + m_MotionData.Velocity * k_VelocityScale, k_RayEndCap, k_SmoothVelColor);
                 }
                 else
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, transform.forward, k_SmoothVelColor, 1.0f, m_MotionData.Speed*k_VelocityScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + transform.forward*m_MotionData.Speed*k_VelocityScale, k_RayEndcap, k_SmoothVelColor);
+                    GizmoModule.instance.DrawRay(position, forward, k_SmoothVelColor, 1.0f, m_MotionData.Speed * k_VelocityScale);
+                    GizmoModule.instance.DrawSphere(position + forward * (m_MotionData.Speed * k_VelocityScale), k_RayEndCap, k_SmoothVelColor);
                 }
             }
-            
+
             if (m_DrawSmoothAcceleration)
             {
                 if (m_UseDirection)
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, m_MotionData.Direction, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength*k_AccelerationScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + m_MotionData.Acceleration*k_AccelerationScale, k_RayEndcap, k_SmoothAccColor);
+                    GizmoModule.instance.DrawRay(position, m_MotionData.Direction, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength * k_AccelerationScale);
+                    GizmoModule.instance.DrawSphere(position + m_MotionData.Acceleration * k_AccelerationScale, k_RayEndCap, k_SmoothAccColor);
                 }
                 else
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, transform.forward, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength*k_AccelerationScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + transform.forward*m_MotionData.AccelerationStrength*k_AccelerationScale, k_RayEndcap, k_SmoothAccColor);
+                    GizmoModule.instance.DrawRay(position, forward, k_SmoothAccColor, 1.0f, m_MotionData.AccelerationStrength * k_AccelerationScale);
+                    GizmoModule.instance.DrawSphere(position + forward * (m_MotionData.AccelerationStrength * k_AccelerationScale), k_RayEndCap, k_SmoothAccColor);
                 }
             }
 
             if (m_DrawAngularVelocity)
             {
                 // Angular velocity axis changes to rapidly to follow data, so we always draw the rotation off a fixed axis
-                GizmoModule.instance.DrawRay(m_ToTrack.position, -transform.right, k_AngularVelocityColor, 1.0f, k_AngularAxisLength);
-                GizmoModule.instance.DrawWedge(m_ToTrack.position - transform.right*k_AngularAxisLength, Quaternion.LookRotation(-transform.right), k_AngularWedgeSize, m_MotionData.AngularSpeed, k_AngularVelocityColor);
+                var right = transform.right;
+                GizmoModule.instance.DrawRay(position, -right, k_AngularVelocityColor, 1.0f, k_AngularAxisLength);
+                GizmoModule.instance.DrawWedge(position - right * k_AngularAxisLength, Quaternion.LookRotation(-right), k_AngularWedgeSize, m_MotionData.AngularSpeed, k_AngularVelocityColor);
 
                 // If someone wants to see the active axis, draw that as an additional ray
                 if (m_UseDirection)
                 {
                     // We draw the axis centered - rotating one way or another can flip the axis and it just adds visual noise.
-                    GizmoModule.instance.DrawRay(m_ToTrack.position - m_MotionData.AngularAxis*k_AngularAxisLength*0.5f, m_MotionData.AngularAxis, k_AngularVelocityColor, 1.0f, k_AngularAxisLength);
+                    GizmoModule.instance.DrawRay(position - m_MotionData.AngularAxis * (k_AngularAxisLength * 0.5f), m_MotionData.AngularAxis, k_AngularVelocityColor, 1.0f, k_AngularAxisLength);
                 }
             }
 
             // Also draw pure single-frame integration
             if (m_DrawDirectSpeed)
             {
-                var directOffset = (m_ToTrack.position - m_LastPosition);
-                var deltaDistance = directOffset.magnitude/Mathf.Max(Time.smoothDeltaTime, 0.00001f);
+                var directOffset = position - m_LastPosition;
+                var deltaDistance = directOffset.magnitude / Mathf.Max(Time.smoothDeltaTime, 0.00001f);
                 var directDirection = directOffset.normalized;
 
                 if (m_UseDirection)
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, directDirection, k_DirectIntegrationColor, 1.0f, deltaDistance*k_VelocityScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + directDirection*deltaDistance*k_VelocityScale, k_RayEndcap, k_DirectIntegrationColor);
+                    GizmoModule.instance.DrawRay(position, directDirection, k_DirectIntegrationColor, 1.0f, deltaDistance * k_VelocityScale);
+                    GizmoModule.instance.DrawSphere(position + directDirection * (deltaDistance * k_VelocityScale), k_RayEndCap, k_DirectIntegrationColor);
                 }
                 else
                 {
-                    GizmoModule.instance.DrawRay(m_ToTrack.position, transform.forward, k_DirectIntegrationColor, 1.0f, deltaDistance*k_RayScale);
-                    GizmoModule.instance.DrawSphere(m_ToTrack.position + transform.forward*deltaDistance*k_VelocityScale, k_RayEndcap, k_DirectIntegrationColor);
+                    GizmoModule.instance.DrawRay(position, forward, k_DirectIntegrationColor, 1.0f, deltaDistance * k_RayScale);
+                    GizmoModule.instance.DrawSphere(position + forward * (deltaDistance * k_VelocityScale), k_RayEndCap, k_DirectIntegrationColor);
                 }
             }
 
             // Store the last position so we can integrate it again next frame
-            m_LastPosition = m_ToTrack.position;
-
+            m_LastPosition = position;
         }
     }
 }

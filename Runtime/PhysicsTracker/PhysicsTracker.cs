@@ -7,14 +7,13 @@ namespace Unity.Labs.SuperScience
     /// Object that can estimate a smoothed velocity and acceleration (linear and angular)
     /// from discrete pose (position and rotation) values
     /// </summary>
-    [System.Serializable]
+    [Serializable]
     public class PhysicsTracker
     {
         /// <summary>
         /// The time period that the physics values are averaged over
         /// </summary>
         const float k_Period = 0.125f;
-        const float k_HalfPeriod = k_Period*0.5f;
 
         /// <summary>
         /// The number of discrete steps to store physics samples in
@@ -24,7 +23,7 @@ namespace Unity.Labs.SuperScience
         /// <summary>
         /// The time period stored within a single step sample
         /// </summary>
-        const float k_SamplePeriod = k_Period/k_Steps;
+        const float k_SamplePeriod = k_Period / k_Steps;
 
         /// <summary>
         /// Weight to use for the most recent physics sample, when doing prediction
@@ -36,7 +35,7 @@ namespace Unity.Labs.SuperScience
         /// If we are doing prediction, the time period we average over is stretched out
         /// to simulate having more data than we've actually recorded
         /// </summary>
-        const float k_PredictedPeriod = k_Period + k_SamplePeriod*k_AdditiveWeight;
+        const float k_PredictedPeriod = k_Period + k_SamplePeriod * k_AdditiveWeight;
 
         /// <summary>
         /// We need to keep one extra sample in our sample buffer to have a smooth transition
@@ -106,7 +105,7 @@ namespace Unity.Labs.SuperScience
         // make sure the frame time in that reset sample is the maximum we need
         int m_CurrentSampleIndex = -1;
         Sample[] m_Samples = new Sample[k_SampleLength];
-        
+
         // Previous-frame history for integrating velocity
         Vector3 m_LastOffsetPosition = Vector3.zero;
         Vector3 m_LastDirectionPosition = Vector3.zero;
@@ -114,7 +113,7 @@ namespace Unity.Labs.SuperScience
 
         // Output data
         public float Speed { get; private set; }
-        public float AccelerationStrength { get; private set; }     // This value can be negative, for deceleration
+        public float AccelerationStrength { get; private set; } // This value can be negative, for deceleration
         public Vector3 Direction { get; private set; }
         public Vector3 Velocity { get; private set; }
         public Vector3 Acceleration { get; private set; }
@@ -122,7 +121,7 @@ namespace Unity.Labs.SuperScience
         public float AngularSpeed { get; private set; }
         public Vector3 AngularAxis { get; private set; }
         public Vector3 AngularVelocity { get; private set; }
-        public float AngularAccelerationStrength { get; private set; }      // This value can be negative, for deceleration
+        public float AngularAccelerationStrength { get; private set; } // This value can be negative, for deceleration
         public Vector3 AngularAcceleration { get; private set; }
 
         /// <summary>
@@ -151,10 +150,13 @@ namespace Unity.Labs.SuperScience
             AngularVelocity = currentAngularVelocity;
 
             m_CurrentSampleIndex = 0;
-            m_Samples[0] = new Sample { distance = Speed * k_Period, offset = Velocity * k_Period,
-                                        angle = AngularSpeed * k_Period, axisOffset = AngularAxis * k_Period,
-                                        speed = Speed, angularSpeed = AngularSpeed,
-                                        time = k_Period };
+            m_Samples[0] = new Sample
+            {
+                distance = Speed * k_Period, offset = Velocity * k_Period,
+                angle = AngularSpeed * k_Period, axisOffset = AngularAxis * k_Period,
+                speed = Speed, angularSpeed = AngularSpeed,
+                time = k_Period
+            };
         }
 
         /// <summary>
@@ -198,9 +200,7 @@ namespace Unity.Labs.SuperScience
 
             // Update angular data in the same fashion
             var rotationOffset = newRotation * Quaternion.Inverse(m_LastRotation);
-            float currentAngle;
-            var activeAxis = Vector3.zero;
-            rotationOffset.ToAngleAxis(out currentAngle, out activeAxis);
+            rotationOffset.ToAngleAxis(out var currentAngle, out var activeAxis);
 
             // Extremely small deltas make for a wildly unpredictable axis
             if (currentAngle < k_MinAngle)
@@ -214,7 +214,7 @@ namespace Unity.Labs.SuperScience
             }
 
             // We let strong rotations have more of an effect on the axis of rotation than weak ones
-            var axisDistance = 1.0f + (currentAngle/90.0f);
+            var axisDistance = 1.0f + currentAngle / 90.0f;
 
             // Add new data to the current sample
             m_Samples[m_CurrentSampleIndex].distance += currentDistance;
@@ -226,11 +226,11 @@ namespace Unity.Labs.SuperScience
             // We manually make sure the axis are always adding direction, instead of taking away
             if (Vector3.Dot(activeAxis, m_Samples[m_CurrentSampleIndex].axisOffset) < 0)
             {
-                m_Samples[m_CurrentSampleIndex].axisOffset += -activeAxis*axisDistance;
+                m_Samples[m_CurrentSampleIndex].axisOffset += -activeAxis * axisDistance;
             }
             else
             {
-                m_Samples[m_CurrentSampleIndex].axisOffset += activeAxis*axisDistance;
+                m_Samples[m_CurrentSampleIndex].axisOffset += activeAxis * axisDistance;
             }
 
             // Accumulate and generate our new smooth, predicted physics values
@@ -274,8 +274,10 @@ namespace Unity.Labs.SuperScience
                     directionVsActive = -directionVsActive;
                     Direction = -Direction;
                 }
+
                 Direction = Vector3.Lerp(activeDirection, Direction, directionVsActive).normalized;
             }
+
             Velocity = Direction * Speed;
 
             AngularSpeed = combinedSample.angle / k_PredictedPeriod;
@@ -293,12 +295,13 @@ namespace Unity.Labs.SuperScience
                 axisVsActive = -axisVsActive;
                 AngularAxis = -AngularAxis;
             }
+
             AngularAxis = Vector3.Lerp(activeAxis, AngularAxis, axisVsActive).normalized;
             AngularVelocity = AngularAxis * AngularSpeed * Mathf.Deg2Rad;
 
             // We compare the newest and oldest velocity samples to get the new acceleration
-            var speedDelta = (Speed - oldestSpeed);
-            var angularSpeedDelta = (AngularSpeed - oldestAngularSpeed);
+            var speedDelta = Speed - oldestSpeed;
+            var angularSpeedDelta = AngularSpeed - oldestAngularSpeed;
 
             AccelerationStrength = speedDelta / k_Period;
             Acceleration = AccelerationStrength * Direction;
@@ -315,7 +318,7 @@ namespace Unity.Labs.SuperScience
             // We record the last speed value before we switch to a new sample, for acceleration sampling
             m_Samples[m_CurrentSampleIndex].speed = Speed;
             m_Samples[m_CurrentSampleIndex].angularSpeed = AngularSpeed;
-            m_CurrentSampleIndex = ((m_CurrentSampleIndex - 1) + k_SampleLength) % k_SampleLength;
+            m_CurrentSampleIndex = (m_CurrentSampleIndex - 1 + k_SampleLength) % k_SampleLength;
             m_Samples[m_CurrentSampleIndex] = new Sample();
         }
     }

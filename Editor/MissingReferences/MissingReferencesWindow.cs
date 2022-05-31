@@ -86,7 +86,6 @@ namespace Unity.Labs.SuperScience
             readonly List<GameObjectContainer> m_Children = new List<GameObjectContainer>();
             readonly List<ComponentContainer> m_Components = new List<ComponentContainer>();
             internal List<GameObjectContainer> Children => m_Children;
-            internal List<ComponentContainer> Components => m_Components;
 
             bool m_IsMissingPrefab;
             int m_MissingReferencesInChildren;
@@ -99,7 +98,7 @@ namespace Unity.Labs.SuperScience
             bool m_ShowChildren;
 
             public int Count { get; private set; }
-            public override UnityObject Object { get { return m_GameObject; } }
+            public override UnityObject Object => m_GameObject;
 
             public GameObjectContainer() { }
 
@@ -404,6 +403,8 @@ namespace Unity.Labs.SuperScience
                                 var type = targetProperty.objectReferenceValue.GetType();
                                 try
                                 {
+                                    // ReSharer will suggest using All here, but Any is more efficient, as it will early-out when a match is found
+                                    // ReSharper disable once SimplifyLinqExpressionUseAll
                                     if (!type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Any(info => info.Name == methodName))
                                         return true;
                                 }

@@ -1,10 +1,13 @@
 ﻿using UnityEngine;
+
+#if UNITY_2019_1_OR_NEWER
 using UnityEngine.XR;
+#endif
 
 namespace Unity.Labs.SuperScience
 {
     /// <summary>
-    /// Helper class to map device position and rotation to the gameobject holding this component
+    /// Helper class to map device position and rotation to the game object holding this component
     /// </summary>
     public class HandPose : MonoBehaviour
     {

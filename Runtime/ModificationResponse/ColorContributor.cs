@@ -14,6 +14,6 @@ namespace Unity.Labs.SuperScience
         Color m_Color;
 #pragma warning restore 649
 
-        public Color color { get { return m_Color; } }
+        public Color color => m_Color;
     }
 }
