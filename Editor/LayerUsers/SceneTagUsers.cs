@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEditor.Experimental.SceneManagement;
+using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -350,6 +351,16 @@ namespace Unity.Labs.SuperScience
         static readonly GUIContent k_CancelGUIContent = new GUIContent("Cancel", "Cancel the current scan");
         static readonly GUILayoutOption k_FilterPanelWidthOption = GUILayout.Width(k_FilterPanelWidth);
         static readonly Vector2 k_MinSize = new Vector2(400, 200);
+        static readonly HashSet<string> k_BuiltInTags = new HashSet<string>
+        {
+            k_UntaggedString,
+            "Respawn",
+            "Finish",
+            "EditorOnly",
+            "MainCamera",
+            "Player",
+            "GameController",
+        };
 
         Vector2 m_ColorListScrollPosition;
         Vector2 m_FolderTreeScrollPosition;
@@ -490,6 +501,16 @@ namespace Unity.Labs.SuperScience
         {
             m_Scanned = true;
             m_SceneContainers.Clear();
+            m_FilterRows.Clear();
+
+            // Add all tags to FilterRows to include tags with no users
+            foreach (var tag in InternalEditorUtility.tags)
+            {
+                if (k_BuiltInTags.Contains(tag))
+                    continue;
+
+                m_FilterRows[tag] = new HashSet<GameObject>();
+            }
 
             // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();

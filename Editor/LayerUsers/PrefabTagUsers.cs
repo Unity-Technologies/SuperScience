@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEditor.Experimental.SceneManagement;
+using UnityEditorInternal;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -287,6 +289,16 @@ namespace Unity.Labs.SuperScience
         static readonly GUIContent k_CancelGUIContent = new GUIContent("Cancel", "Cancel the current scan");
         static readonly GUILayoutOption k_FilterPanelWidthOption = GUILayout.Width(k_FilterPanelWidth);
         static readonly Vector2 k_MinSize = new Vector2(400, 200);
+        static readonly HashSet<string> k_BuiltInTags = new HashSet<string>
+        {
+            k_UntaggedString,
+            "Respawn",
+            "Finish",
+            "EditorOnly",
+            "MainCamera",
+            "Player",
+            "GameController",
+        };
 
         static readonly Stopwatch k_StopWatch = new Stopwatch();
 
@@ -510,6 +522,16 @@ namespace Unity.Labs.SuperScience
                 return;
 
             m_FilterRows.Clear();
+
+            // Add all tags to FilterRows to include tags with no users
+            foreach (var tag in InternalEditorUtility.tags)
+            {
+                if (k_BuiltInTags.Contains(tag))
+                    continue;
+
+                m_FilterRows[tag] = new HashSet<GameObject>();
+            }
+
             m_ParentFolder.Clear();
             var prefabAssets = new List<(string, GameObject)>();
             foreach (var guid in guids)
