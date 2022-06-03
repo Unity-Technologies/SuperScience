@@ -8,6 +8,11 @@ namespace Unity.Labs.SuperScience
         public EditorDelegatesExampleWindow() {}
     }
 
+    public class GlobalNamespaceWatcher : UnityEditor.EditorWindow
+    {
+        public GlobalNamespaceWatcher() {}
+    }
+
     public class HiddenHierarchy : UnityEditor.EditorWindow
     {
         public HiddenHierarchy() {}
@@ -52,5 +57,10 @@ namespace Unity.Labs.SuperScience
     public class SceneTagUsers : UnityEditor.EditorWindow
     {
         public SceneTagUsers() {}
+    }
+
+    public class SolidColorTextures : UnityEditor.EditorWindow
+    {
+        public SolidColorTextures() {}
     }
 }
