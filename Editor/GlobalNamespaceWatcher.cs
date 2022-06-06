@@ -21,6 +21,11 @@ namespace Unity.Labs.SuperScience
         /// </summary>
         class AssemblyRow
         {
+            static readonly GUIContent k_OpenGUIContent = new GUIContent("Open", "Open this script in the default script editor.");
+            static readonly GUIContent k_OpenAllGUIContent = new GUIContent("Open All", "Open all scripts in this assembly's " +
+                "global namespace in the default script editor.\nWARNING: This process can lock the Editor for a long time and cannot be canceled.");
+            static readonly GUILayoutOption k_OpenButtonWidth = GUILayout.Width(100);
+
             /// <summary>
             /// The path to the assembly, sourced from Assembly.Location.
             /// </summary>
@@ -47,6 +52,11 @@ namespace Unity.Labs.SuperScience
             public int MonoScriptTypeCount => m_MonoScriptCount;
 
             /// <summary>
+            /// The types in this assembly.
+            /// </summary>
+            public SortedList<string, MonoScript> Types => m_Types;
+
+            /// <summary>
             /// Draw this assembly row to the GUI.
             /// </summary>
             /// <param name="assemblyName">The name of the assembly.</param>
@@ -54,7 +64,25 @@ namespace Unity.Labs.SuperScience
             public void Draw(string assemblyName, bool showOnlyMonoScriptTypes = false)
             {
                 var count = showOnlyMonoScriptTypes ? m_MonoScriptCount : m_Types.Count;
-                m_Expanded = EditorGUILayout.Foldout(m_Expanded, $"{assemblyName}: ({count})", true);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    m_Expanded = EditorGUILayout.Foldout(m_Expanded, $"{assemblyName}: ({count})", true);
+                    using (new EditorGUI.DisabledScope(m_MonoScriptCount == 0))
+                    {
+                        if (GUILayout.Button(k_OpenAllGUIContent, k_OpenButtonWidth))
+                        {
+                            foreach (var kvp in m_Types)
+                            {
+                                var monoScript = kvp.Value;
+                                if (monoScript == null)
+                                    continue;
+
+                                AssetDatabase.OpenAsset(monoScript);
+                            }
+                        }
+                    }
+                }
+
                 if (m_Expanded)
                 {
                     using (new EditorGUI.IndentLevelScope())
@@ -64,16 +92,31 @@ namespace Unity.Labs.SuperScience
                         {
                             foreach (var kvp in m_Types)
                             {
+                                var label = kvp.Key;
                                 var monoScript = kvp.Value;
-                                if (showOnlyMonoScriptTypes && monoScript == null)
-                                    continue;
-
-                                EditorGUILayout.LabelField(kvp.Key);
-                                EditorGUILayout.ObjectField(monoScript, typeof(MonoScript), false);
+                                DrawScript(showOnlyMonoScriptTypes, monoScript, label);
                             }
                         }
                     }
                 }
+            }
+
+            static void DrawScript(bool showOnlyMonoScriptTypes, MonoScript monoScript, string label)
+            {
+                if (showOnlyMonoScriptTypes && monoScript == null)
+                    return;
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField(label);
+                    using (new EditorGUI.DisabledScope(monoScript == null))
+                    {
+                        if (GUILayout.Button(k_OpenGUIContent, k_OpenButtonWidth))
+                            AssetDatabase.OpenAsset(monoScript);
+                    }
+                }
+
+                EditorGUILayout.ObjectField(monoScript, typeof(MonoScript), false);
             }
 
             /// <summary>
@@ -84,10 +127,16 @@ namespace Unity.Labs.SuperScience
             /// <param name="monoScript">An associated MonoScript, if one exists.</param>
             public void AddType(string typeName, MonoScript monoScript)
             {
+                var label = typeName;
                 if (monoScript != null)
+                {
                     m_MonoScriptCount++;
+                    var path = AssetDatabase.GetAssetPath(monoScript);
+                    if (!string.IsNullOrEmpty(path))
+                        label = path;
+                }
 
-                m_Types.Add(typeName, monoScript);
+                m_Types.Add(label, monoScript);
             }
         }
 
@@ -99,7 +148,11 @@ namespace Unity.Labs.SuperScience
         const int k_LabelWidth = 200;
         const string k_CongratulationsLabel = "Congratulations! There are no types in the global namespace. :)";
 
+        static readonly GUIContent k_OpenEverythingGUIContent = new GUIContent("Open Everything", "Open all scripts in the " +
+            "global namespace in the default script editor.\nWARNING: This process can lock the Editor for a long time and cannot be canceled.");
+
         static SortedList<string, AssemblyRow> s_Assemblies;
+        static int s_TotalMonoScriptCount;
 
         [SerializeField]
         Vector2 m_ScrollPosition;
@@ -120,6 +173,9 @@ namespace Unity.Labs.SuperScience
         {
             if (s_Assemblies == null)
             {
+                // Reset total count, just in case it's gone out of sync with s_Assemblies.
+                s_TotalMonoScriptCount = 0;
+
                 // Prepare a map of MonoScript types for fast access.
                 var monoScripts = MonoImporter.GetAllRuntimeMonoScripts();
                 var monoScriptDictionary = new Dictionary<string, MonoScript>(monoScripts.Length);
@@ -190,7 +246,10 @@ namespace Unity.Labs.SuperScience
                         }
 
                         if (addedType)
+                        {
                             s_Assemblies.Add(assemblyName, row);
+                            s_TotalMonoScriptCount += row.MonoScriptTypeCount;
+                        }
                     }
                     catch
                     {
@@ -208,6 +267,24 @@ namespace Unity.Labs.SuperScience
             EditorGUIUtility.labelWidth = k_LabelWidth;
             m_ShowOnlyProjectAssemblies = EditorGUILayout.Toggle(k_ShowOnlyProjectAssembliesLabel, m_ShowOnlyProjectAssemblies);
             m_ShowOnlyMonoScriptTypes = EditorGUILayout.Toggle(k_ShowOnlyMonoScriptTypesLabel, m_ShowOnlyMonoScriptTypes);
+
+            using (new EditorGUI.DisabledScope(s_TotalMonoScriptCount == 0))
+            {
+                if (GUILayout.Button(k_OpenEverythingGUIContent))
+                {
+                    foreach (var kvp in s_Assemblies)
+                    {
+                        foreach (var kvp2 in kvp.Value.Types)
+                        {
+                            var monoScript = kvp2.Value;
+                            if (monoScript != null)
+                                continue;
+
+                            AssetDatabase.OpenAsset(monoScript);
+                        }
+                    }
+                }
+            }
 
             // Give users convenient buttons to expand/collapse the assembly rows
             using (new EditorGUILayout.HorizontalScope())
