@@ -273,6 +273,9 @@ namespace Unity.Labs.SuperScience
             /// </summary>
             public override void Draw()
             {
+                if (m_GameObject == null)
+                    return;
+
                 var wasExpanded = m_Expanded;
                 var label = string.Format(k_LabelFormat, m_GameObject.name, m_MissingReferences);
                 if (m_IsMissingPrefab)
