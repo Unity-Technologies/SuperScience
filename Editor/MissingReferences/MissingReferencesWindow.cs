@@ -547,6 +547,9 @@ namespace Unity.Labs.SuperScience
         /// <param name="properties">A list of SerializedProperty objects known to have missing references</param>
         internal static void DrawPropertiesWithMissingReferences(List<SerializedProperty> properties)
         {
+            if (properties == null)
+                return;
+
             foreach (var property in properties)
             {
                 switch (property.propertyType)

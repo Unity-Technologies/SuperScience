@@ -107,6 +107,9 @@ namespace Unity.Labs.SuperScience
                     {
                         DrawPropertiesWithMissingReferences(m_PropertiesWithMissingReferences);
 
+                        if (m_SubAssets == null)
+                            return;
+
                         var count = m_SubAssets.Count;
                         if (count == 0)
                             return;
