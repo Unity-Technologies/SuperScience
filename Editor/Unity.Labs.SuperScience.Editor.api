@@ -3,6 +3,11 @@
 // make sure the XML doc file is present and located next to the scraped dll
 namespace Unity.Labs.SuperScience
 {
+    public class AssemblyExplorer : UnityEditor.EditorWindow
+    {
+        public AssemblyExplorer() {}
+    }
+
     public class EditorDelegatesExampleWindow : UnityEditor.EditorWindow
     {
         public EditorDelegatesExampleWindow() {}
@@ -28,10 +33,10 @@ namespace Unity.Labs.SuperScience
         public ModificationResponseExampleWindow() {}
     }
 
-    [System.Runtime.CompilerServices.Extension] public static class MonoBehaviourExtensions
+    public static class MonoBehaviourExtensions
     {
-        [System.Runtime.CompilerServices.Extension] public static void StartRunInEditMode(UnityEngine.MonoBehaviour behaviour);
-        [System.Runtime.CompilerServices.Extension] public static void StopRunInEditMode(UnityEngine.MonoBehaviour behaviour);
+        public static void StartRunInEditMode(this UnityEngine.MonoBehaviour behaviour);
+        public static void StopRunInEditMode(this UnityEngine.MonoBehaviour behaviour);
     }
 
     public class RunInEditHelper : UnityEditor.EditorWindow

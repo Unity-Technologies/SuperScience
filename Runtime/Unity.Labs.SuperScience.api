@@ -39,15 +39,15 @@ namespace Unity.Labs.SuperScience
         public void UpdateFromScene(UnityEngine.SceneManagement.Scene scene);
     }
 
-    public class GizmoModule : UnityEngine.MonoBehaviour, Unity.XRTools.ModuleLoader.IModule
+    public class GizmoModule : UnityEngine.MonoBehaviour
     {
-        public static Unity.Labs.SuperScience.GizmoModule instance;
-        public const float RayLength = 100;
+        public static GizmoModule instance;
+        public const float RayLength = 100f;
         public UnityEngine.Material gizmoCutoffMaterial { get; }
         public UnityEngine.Material gizmoMaterial { get; }
         public GizmoModule() {}
         public void DrawCube(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation, UnityEngine.Vector3 scale, UnityEngine.Color color);
-        public void DrawRay(UnityEngine.Vector3 origin, UnityEngine.Vector3 direction, UnityEngine.Color color, float viewerScale = 1, float rayLength = 100);
+        public void DrawRay(UnityEngine.Vector3 origin, UnityEngine.Vector3 direction, UnityEngine.Color color, float viewerScale = 1f, float rayLength = 100f);
         public void DrawSphere(UnityEngine.Vector3 center, float radius, UnityEngine.Color color);
         public void DrawWedge(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation, float radius, float angle, UnityEngine.Color color);
     }
