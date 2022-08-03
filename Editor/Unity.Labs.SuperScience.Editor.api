@@ -34,9 +34,29 @@ namespace Unity.Labs.SuperScience
         [System.Runtime.CompilerServices.Extension] public static void StopRunInEditMode(UnityEngine.MonoBehaviour behaviour);
     }
 
+    public class PrefabLayerUsers : UnityEditor.EditorWindow
+    {
+        public PrefabLayerUsers() {}
+    }
+
+    public class PrefabTagUsers : UnityEditor.EditorWindow
+    {
+        public PrefabTagUsers() {}
+    }
+
     public class RunInEditHelper : UnityEditor.EditorWindow
     {
         public RunInEditHelper() {}
+    }
+
+    public class SceneLayerUsers : UnityEditor.EditorWindow
+    {
+        public SceneLayerUsers() {}
+    }
+
+    public class SceneTagUsers : UnityEditor.EditorWindow
+    {
+        public SceneTagUsers() {}
     }
 
     public class SolidColorTextures : UnityEditor.EditorWindow

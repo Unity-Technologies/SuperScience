@@ -33,11 +33,19 @@ namespace Unity.Labs.SuperScience
                 const string k_SubAssetsLabelFormat = "Sub-assets: {0}";
 
                 readonly UnityObject m_Object;
-                bool m_SubAssetsVisible;
-                public readonly List<MissingReferencesContainer> SubAssets = new List<MissingReferencesContainer>();
-                public readonly List<SerializedProperty> PropertiesWithMissingReferences = new List<SerializedProperty>();
+                readonly List<MissingReferencesContainer> m_SubAssets;
+                readonly List<SerializedProperty> m_PropertiesWithMissingReferences;
+
+                bool m_SubAssetsExpanded;
 
                 public override UnityObject Object => m_Object;
+
+                AssetContainer(UnityObject unityObject, List<MissingReferencesContainer> subAssets, List<SerializedProperty> propertiesWithMissingReferences)
+                {
+                    m_Object = unityObject;
+                    m_SubAssets = subAssets;
+                    m_PropertiesWithMissingReferences = propertiesWithMissingReferences;
+                }
 
                 /// <summary>
                 /// Initialize an AssetContainer to represent the given UnityObject
@@ -47,33 +55,47 @@ namespace Unity.Labs.SuperScience
                 /// <param name="unityObject">The main UnityObject for this asset</param>
                 /// <param name="path">The path to this asset, for gathering sub-assets</param>
                 /// <param name="options">User-configurable options for this view</param>
-                public AssetContainer(UnityObject unityObject, string path, Options options)
+                public static AssetContainer CreateIfNecessary(UnityObject unityObject, string path, Options options)
                 {
-                    m_Object = unityObject;
-                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
+                    var missingReferences = CheckForMissingReferences(unityObject, options);
 
                     // Collect any sub-asset references
+                    List<MissingReferencesContainer> subAssets = null;
                     foreach (var asset in AssetDatabase.LoadAllAssetRepresentationsAtPath(path))
                     {
                         if (asset is GameObject prefab)
                         {
-                            var gameObjectContainer = new GameObjectContainer(prefab, options);
-                            if (gameObjectContainer.Count > 0)
-                                SubAssets.Add(gameObjectContainer);
+                            var gameObjectContainer = GameObjectContainer.CreateIfNecessary(prefab, options);
+                            if (gameObjectContainer != null)
+                            {
+                                subAssets ??= new List<MissingReferencesContainer>();
+                                subAssets.Add(gameObjectContainer);
+                            }
                         }
                         else
                         {
-                            var assetContainer = new AssetContainer(asset, options);
-                            if (assetContainer.PropertiesWithMissingReferences.Count > 0)
-                                SubAssets.Add(assetContainer);
+                            var assetContainer = CreateIfNecessary(asset, options);
+                            if (assetContainer != null)
+                            {
+                                subAssets ??= new List<MissingReferencesContainer>();
+                                subAssets.Add(assetContainer);
+                            }
                         }
                     }
+
+                    if (missingReferences != null || subAssets != null)
+                        return new AssetContainer(unityObject, subAssets, missingReferences);
+
+                    return null;
                 }
 
-                AssetContainer(UnityObject unityObject, Options options)
+                static AssetContainer CreateIfNecessary(UnityObject unityObject, Options options)
                 {
-                    m_Object = unityObject;
-                    CheckForMissingReferences(unityObject, PropertiesWithMissingReferences, options);
+                    var missingReferences = CheckForMissingReferences(unityObject, options);
+                    if (missingReferences != null)
+                        return new AssetContainer(unityObject, null, missingReferences);
+
+                    return null;
                 }
 
                 /// <summary>
@@ -83,33 +105,36 @@ namespace Unity.Labs.SuperScience
                 {
                     using (new EditorGUI.IndentLevelScope())
                     {
-                        DrawPropertiesWithMissingReferences(PropertiesWithMissingReferences);
+                        DrawPropertiesWithMissingReferences(m_PropertiesWithMissingReferences);
 
-                        var count = SubAssets.Count;
+                        if (m_SubAssets == null)
+                            return;
+
+                        var count = m_SubAssets.Count;
                         if (count == 0)
                             return;
 
-                        m_SubAssetsVisible = EditorGUILayout.Foldout(m_SubAssetsVisible, string.Format(k_SubAssetsLabelFormat, count));
-                        if (!m_SubAssetsVisible)
+                        m_SubAssetsExpanded = EditorGUILayout.Foldout(m_SubAssetsExpanded, string.Format(k_SubAssetsLabelFormat, count));
+                        if (!m_SubAssetsExpanded)
                             return;
 
-                        foreach (var asset in SubAssets)
+                        foreach (var asset in m_SubAssets)
                         {
                             asset.Draw();
                         }
                     }
                 }
 
-                public override void SetVisibleRecursively(bool visible)
+                public override void SetExpandedRecursively(bool expanded)
                 {
-                    m_SubAssetsVisible = visible;
+                    m_SubAssetsExpanded = expanded;
                 }
             }
 
             const string k_LabelFormat = "{0}: {1}";
             readonly SortedDictionary<string, Folder> m_Subfolders = new SortedDictionary<string, Folder>();
             readonly List<MissingReferencesContainer> m_Assets = new List<MissingReferencesContainer>();
-            bool m_Visible;
+            bool m_Expanded;
 
             internal List<MissingReferencesContainer> Assets => m_Assets;
             internal SortedDictionary<string, Folder> Subfolders => m_Subfolders;
@@ -142,14 +167,14 @@ namespace Unity.Labs.SuperScience
                 // Model prefabs may contain materials which we want to scan. The "real prefab" as a sub-asset
                 if (asset is GameObject prefab && PrefabUtility.GetPrefabAssetType(asset) != PrefabAssetType.Model)
                 {
-                    var gameObjectContainer = new GameObjectContainer(prefab, options);
-                    if (gameObjectContainer.Count > 0)
+                    var gameObjectContainer = GameObjectContainer.CreateIfNecessary(prefab, options);
+                    if (gameObjectContainer != null)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(gameObjectContainer);
                 }
                 else
                 {
-                    var assetContainer = new AssetContainer(asset, path, options);
-                    if (assetContainer.PropertiesWithMissingReferences.Count > 0 || assetContainer.SubAssets.Count > 0)
+                    var assetContainer = AssetContainer.CreateIfNecessary(asset, path, options);
+                    if (assetContainer != null)
                         GetOrCreateFolderForAssetPath(path).m_Assets.Add(assetContainer);
                 }
             }
@@ -193,14 +218,14 @@ namespace Unity.Labs.SuperScience
             /// <param name="name">The name of the folder</param>
             public void Draw(string name)
             {
-                var wasVisible = m_Visible;
-                m_Visible = EditorGUILayout.Foldout(m_Visible, string.Format(k_LabelFormat, name, Count), true);
+                var wasExpanded = m_Expanded;
+                m_Expanded = EditorGUILayout.Foldout(m_Expanded, string.Format(k_LabelFormat, name, Count), true);
 
-                // Hold alt to apply visibility state to all children (recursively)
-                if (m_Visible != wasVisible && Event.current.alt)
-                    SetVisibleRecursively(m_Visible);
+                // Hold alt to apply expanded state to all children (recursively)
+                if (m_Expanded != wasExpanded && Event.current.alt)
+                    SetExpandedRecursively(m_Expanded);
 
-                if (!m_Visible)
+                if (!m_Expanded)
                     return;
 
                 using (new EditorGUI.IndentLevelScope())
@@ -223,20 +248,20 @@ namespace Unity.Labs.SuperScience
             }
 
             /// <summary>
-            /// Set the visibility state of this folder, its contents and their children and all of its subfolders and their contents and children
+            /// Set the expanded state of this folder, its contents and their children and all of its subfolders and their contents and children
             /// </summary>
-            /// <param name="visible">Whether this object and its children should be visible in the GUI</param>
-            void SetVisibleRecursively(bool visible)
+            /// <param name="expanded">Whether this object should be expanded in the GUI</param>
+            void SetExpandedRecursively(bool expanded)
             {
-                m_Visible = visible;
+                m_Expanded = expanded;
                 foreach (var asset in m_Assets)
                 {
-                    asset.SetVisibleRecursively(visible);
+                    asset.SetExpandedRecursively(expanded);
                 }
 
                 foreach (var kvp in m_Subfolders)
                 {
-                    kvp.Value.SetVisibleRecursively(visible);
+                    kvp.Value.SetExpandedRecursively(expanded);
                 }
             }
 

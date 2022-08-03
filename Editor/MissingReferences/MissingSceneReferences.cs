@@ -22,14 +22,13 @@ namespace Unity.Labs.SuperScience
             "WARNING: For large scenes, this may take a long time and/or crash the Editor.";
 
         const string k_NoMissingReferences = "No missing references in active scene";
-        const string k_UntitledSceneName = "Untitled";
 
         // Bool fields will be serialized to maintain state between domain reloads, but our list of GameObjects will not
         [NonSerialized]
         bool m_Scanned;
 
         Vector2 m_ScrollPosition;
-        readonly List<KeyValuePair<string, GameObjectContainer>> m_SceneRoots = new List<KeyValuePair<string, GameObjectContainer>>();
+        readonly List<SceneContainer> m_SceneContainers = new List<SceneContainer>();
 
         ILookup<int, GameObjectContainer> m_AllMissingReferences;
 
@@ -43,7 +42,7 @@ namespace Unity.Labs.SuperScience
         protected override void Scan(Options options)
         {
             m_Scanned = true;
-            m_SceneRoots.Clear();
+            m_SceneContainers.Clear();
 
             // If we are in prefab isolation mode, scan the prefab stage instead of the active scene
             var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
@@ -67,16 +66,23 @@ namespace Unity.Labs.SuperScience
 
             void AddToList(List<GameObjectContainer> list, GameObjectContainer container)
             {
-                list.AddRange(container.Children.Where(x => x.HasMissingReferences));
-                foreach (var child in container.Children)
+                var children = container.Children;
+                if (children == null)
+                    return;
+
+                list.AddRange(children.Where(x => x.HasMissingReferences));
+                foreach (var child in children)
                 {
                     AddToList(list, child);
                 }
             }
 
-            foreach (var kvp in m_SceneRoots)
+            foreach (var container in m_SceneContainers)
             {
-                AddToList(allMissingReferencesContainers, kvp.Value);
+                foreach (var gameObjectContainer in container.Roots)
+                {
+                    AddToList(allMissingReferencesContainers, gameObjectContainer);
+                }
             }
 
             m_AllMissingReferences = allMissingReferencesContainers.ToLookup(x => x.Object.GetInstanceID());
@@ -91,20 +97,9 @@ namespace Unity.Labs.SuperScience
 
         void ScanScene(Scene scene, Options options)
         {
-            var rootObjectContainer = new GameObjectContainer();
-            foreach (var gameObject in scene.GetRootGameObjects())
-            {
-                rootObjectContainer.AddChild(gameObject, options);
-            }
-
-            if (rootObjectContainer.Count > 0)
-            {
-                var sceneName = scene.name;
-                if (string.IsNullOrEmpty(sceneName))
-                    sceneName = k_UntitledSceneName;
-
-                m_SceneRoots.Add(new KeyValuePair<string, GameObjectContainer>(sceneName, rootObjectContainer));
-            }
+            var sceneContainer = SceneContainer.CreateIfNecessary(scene, options);
+            if (sceneContainer != null)
+                m_SceneContainers.Add(sceneContainer);
         }
 
         protected override void OnGUI()
@@ -117,7 +112,7 @@ namespace Unity.Labs.SuperScience
                 GUIUtility.ExitGUI();
             }
 
-            if (m_SceneRoots.Count == 0)
+            if (m_SceneContainers.Count == 0)
             {
                 GUILayout.Label(k_NoMissingReferences);
             }
@@ -126,9 +121,9 @@ namespace Unity.Labs.SuperScience
                 using (var scrollView = new GUILayout.ScrollViewScope(m_ScrollPosition))
                 {
                     m_ScrollPosition = scrollView.scrollPosition;
-                    foreach (var kvp in m_SceneRoots)
+                    foreach (var container in m_SceneContainers)
                     {
-                        kvp.Value.Draw();
+                        container.Draw();
                     }
                 }
             }
