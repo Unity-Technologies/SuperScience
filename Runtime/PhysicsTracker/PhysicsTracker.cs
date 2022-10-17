@@ -117,12 +117,14 @@ namespace Unity.Labs.SuperScience
         public Vector3 Direction { get; private set; }
         public Vector3 Velocity { get; private set; }
         public Vector3 Acceleration { get; private set; }
+        public float TotalDistance { get; private set; }
 
         public float AngularSpeed { get; private set; }
         public Vector3 AngularAxis { get; private set; }
         public Vector3 AngularVelocity { get; private set; }
         public float AngularAccelerationStrength { get; private set; } // This value can be negative, for deceleration
         public Vector3 AngularAcceleration { get; private set; }
+        public float TotalAngularDistance { get; private set; }
 
         /// <summary>
         /// Sets the PhysicsTracker to a 'known' linear state
@@ -144,10 +146,12 @@ namespace Unity.Labs.SuperScience
             Velocity = currentVelocity;
             AccelerationStrength = 0.0f;
             Acceleration = Vector3.zero;
+            TotalDistance = 0.0f;
 
             AngularSpeed = currentAngularVelocity.magnitude * Mathf.Rad2Deg;
             AngularAxis = currentAngularVelocity.normalized;
             AngularVelocity = currentAngularVelocity;
+            TotalAngularDistance = 0.0f;
 
             m_CurrentSampleIndex = 0;
             m_Samples[0] = new Sample
@@ -184,6 +188,7 @@ namespace Unity.Labs.SuperScience
             var currentOffset = newPosition - m_LastOffsetPosition;
             var currentDistance = currentOffset.magnitude;
             m_LastOffsetPosition = newPosition;
+            TotalDistance += currentDistance;
 
             var activeDirection = newPosition - m_LastDirectionPosition;
 
@@ -215,6 +220,7 @@ namespace Unity.Labs.SuperScience
 
             // We let strong rotations have more of an effect on the axis of rotation than weak ones
             var axisDistance = 1.0f + currentAngle / 90.0f;
+            TotalAngularDistance += axisDistance - 1.0f;
 
             // Add new data to the current sample
             m_Samples[m_CurrentSampleIndex].distance += currentDistance;

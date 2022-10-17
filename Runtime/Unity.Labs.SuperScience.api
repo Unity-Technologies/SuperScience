@@ -68,6 +68,8 @@ namespace Unity.Labs.SuperScience
         public UnityEngine.Vector3 AngularVelocity { get; }
         public UnityEngine.Vector3 Direction { get; }
         public float Speed { get; }
+        public float TotalAngularDistance { get; }
+        public float TotalDistance { get; }
         public UnityEngine.Vector3 Velocity { get; }
         public PhysicsTracker() {}
         public void Reset(UnityEngine.Vector3 currentPosition, UnityEngine.Quaternion currentRotation, UnityEngine.Vector3 currentVelocity, UnityEngine.Vector3 currentAngularVelocity);
