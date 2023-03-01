@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.UI;
 using MonoScript = UnityEditor.MonoScript;
 using UnityObject = UnityEngine.Object;
 
@@ -99,7 +100,7 @@ namespace Unity.Labs.SuperScience
         const int k_LabelWidth = 200;
         const string k_CongratulationsLabel = "Congratulations! There are no types in the global namespace. :)";
 
-        static SortedList<string, AssemblyRow> s_Assemblies;
+        readonly SortedList<string, AssemblyRow> m_Assemblies = new SortedList<string, AssemblyRow>();
 
         [SerializeField]
         Vector2 m_ScrollPosition;
@@ -110,6 +111,9 @@ namespace Unity.Labs.SuperScience
         [SerializeField]
         bool m_ShowOnlyMonoScriptTypes = true;
 
+        [SerializeField]
+        string m_RootNamespace;
+
         [MenuItem("Window/SuperScience/Global Namespace Watcher")]
         static void OnMenuItem()
         {
@@ -118,90 +122,108 @@ namespace Unity.Labs.SuperScience
 
         void OnEnable()
         {
-            if (s_Assemblies == null)
+            Refresh();
+        }
+
+        void Refresh()
+        {
+            // Ensure m_RootNamespace is not null to make logic below a little easier
+            if (m_RootNamespace == null)
+                m_RootNamespace = string.Empty;
+
+            // Prepare a map of MonoScript types for fast access.
+            var monoScripts = MonoImporter.GetAllRuntimeMonoScripts();
+            var monoScriptDictionary = new Dictionary<string, MonoScript>(monoScripts.Length);
+            foreach (var script in monoScripts)
             {
-                // Prepare a map of MonoScript types for fast access.
-                var monoScripts = MonoImporter.GetAllRuntimeMonoScripts();
-                var monoScriptDictionary = new Dictionary<string, MonoScript>(monoScripts.Length);
-                foreach (var script in monoScripts)
+                var scriptClass = script.GetClass();
+                if (scriptClass == null)
+                    continue;
+
+                var className = script.GetClass().FullName;
+                if (string.IsNullOrEmpty(className))
+                    continue;
+
+                monoScriptDictionary[className] = script;
+            }
+
+            // Collect information about all assemblies in the current domain.
+            // Note: This will not include assemblies which are not compiled or loaded in the Editor, like some platform SDKs.
+            m_Assemblies.Clear();
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                // It probably won't happen, but if there is a null reference in the list, skip it.
+                if (assembly == null)
+                    continue;
+
+                try
                 {
-                    var scriptClass = script.GetClass();
-                    if (scriptClass == null)
-                        continue;
+                    var assemblyName = assembly.GetName().Name;
+                    var assemblyDefinitionPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromAssemblyName(assemblyName);
+                    UnityObject assemblyDefinition = null;
+                    if (!string.IsNullOrEmpty(assemblyDefinitionPath))
+                        assemblyDefinition = AssetDatabase.LoadAssetAtPath<AssemblyDefinitionAsset>(assemblyDefinitionPath);
 
-                    var className = script.GetClass().FullName;
-                    if (string.IsNullOrEmpty(className))
-                        continue;
-
-                    monoScriptDictionary[className] = script;
-                }
-
-                // Collect information about all assemblies in the current domain.
-                // Note: This will not include assemblies which are not compiled or loaded in the Editor, like some platform SDKs.
-                s_Assemblies = new SortedList<string, AssemblyRow>();
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    // It probably won't happen, but if there is a null reference in the list, skip it.
-                    if (assembly == null)
-                        continue;
-
-                    try
+                    var addedType = false;
+                    var row = new AssemblyRow { AssemblyDefinitionAsset = assemblyDefinition, Path = assembly.Location };
+                    foreach (var type in assembly.GetTypes())
                     {
-                        var assemblyName = assembly.GetName().Name;
-                        var assemblyDefinitionPath = CompilationPipeline.GetAssemblyDefinitionFilePathFromAssemblyName(assemblyName);
-                        UnityObject assemblyDefinition = null;
-                        if (!string.IsNullOrEmpty(assemblyDefinitionPath))
-                            assemblyDefinition = AssetDatabase.LoadAssetAtPath<AssemblyDefinitionAsset>(assemblyDefinitionPath);
+                        // Ignore nested types--their namespace property returns null but parent type will come up and we can check it.
+                        if (type.IsNested)
+                            continue;
 
-                        var addedType = false;
-                        var row = new AssemblyRow {AssemblyDefinitionAsset = assemblyDefinition, Path = assembly.Location};
-                        foreach (var type in assembly.GetTypes())
+                        // If namespace is not exactly equal to our root namespace, we're good!
+                        var isRootNamespace = type.Namespace == m_RootNamespace;
+                        if (!isRootNamespace)
                         {
-                            // If the type has a namespace, we're good!
-                            if (!string.IsNullOrEmpty(type.Namespace))
+                            // Only reject types with null namespaces if the root namespace is null/empty
+                            if (type.Namespace != null || m_RootNamespace != string.Empty)
                                 continue;
-
-                            // Ignore nested types--their namespace property returns null but parent type will come up and we can check it.
-                            if (type.IsNested)
-                                continue;
-
-                            // Some types that aren't backed by scripts will often show up in the global namespace, but there's nothing wrong with that.
-                            var hasCompilerGeneratedAttribute = false;
-                            foreach (var attribute in type.CustomAttributes)
-                            {
-                                if (attribute.AttributeType == typeof(CompilerGeneratedAttribute))
-                                {
-                                    hasCompilerGeneratedAttribute = true;
-                                    break;
-                                }
-                            }
-
-                            if (hasCompilerGeneratedAttribute)
-                                continue;
-
-                            // It's possible for the type name to be null.
-                            var typeName = type.FullName;
-                            if (string.IsNullOrEmpty(typeName))
-                                continue;
-
-                            monoScriptDictionary.TryGetValue(typeName, out var monoScript);
-                            row.AddType(typeName, monoScript);
-                            addedType = true;
                         }
 
-                        if (addedType)
-                            s_Assemblies.Add(assemblyName, row);
+                        // Some types that aren't backed by scripts will often show up in the global namespace, but there's nothing wrong with that.
+                        var hasCompilerGeneratedAttribute = false;
+                        foreach (var attribute in type.CustomAttributes)
+                        {
+                            if (attribute.AttributeType == typeof(CompilerGeneratedAttribute))
+                            {
+                                hasCompilerGeneratedAttribute = true;
+                                break;
+                            }
+                        }
+
+                        if (hasCompilerGeneratedAttribute)
+                            continue;
+
+                        // It's possible for the type name to be null.
+                        var typeName = type.FullName;
+                        if (string.IsNullOrEmpty(typeName))
+                            continue;
+
+                        monoScriptDictionary.TryGetValue(typeName, out var monoScript);
+                        row.AddType(typeName, monoScript);
+                        addedType = true;
                     }
-                    catch
-                    {
-                        // Some assemblies cause exceptions when trying to access their location or type list
-                    }
+
+                    if (addedType)
+                        m_Assemblies.Add(assemblyName, row);
+                }
+                catch
+                {
+                    // Some assemblies cause exceptions when trying to access their location or type list
                 }
             }
         }
 
         void OnGUI()
         {
+            using (new GUILayout.HorizontalScope())
+            {
+                m_RootNamespace = EditorGUILayout.TextField("Root Namespace", m_RootNamespace);
+                if (GUILayout.Button("Refresh", GUILayout.Width(60)))
+                    Refresh();
+            }
+
             GUILayout.Label(k_HeaderText);
 
             // Increase the label width from its default value so that our long labels are readable
@@ -214,7 +236,7 @@ namespace Unity.Labs.SuperScience
             {
                 if (GUILayout.Button(k_ExpandAllLabel))
                 {
-                    foreach (var kvp in s_Assemblies)
+                    foreach (var kvp in m_Assemblies)
                     {
                         kvp.Value.Expanded = true;
                     }
@@ -222,7 +244,7 @@ namespace Unity.Labs.SuperScience
 
                 if (GUILayout.Button(k_CollapseAllLabel))
                 {
-                    foreach (var kvp in s_Assemblies)
+                    foreach (var kvp in m_Assemblies)
                     {
                         kvp.Value.Expanded = false;
                     }
@@ -234,7 +256,7 @@ namespace Unity.Labs.SuperScience
             {
                 var projectPath = GetProjectPath();
                 m_ScrollPosition = scrollView.scrollPosition;
-                foreach (var kvp in s_Assemblies)
+                foreach (var kvp in m_Assemblies)
                 {
                     var assemblyRow = kvp.Value;
 
